@@ -18,6 +18,8 @@ import {
   LogIn,
   X,
   UserCog,
+  HelpCircle,
+  BookOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,6 +29,7 @@ interface HeaderProps {
   onOpenQuickSearch: () => void;
   onToggleMobileSidebar: () => void;
   onOpenNotifications: () => void;
+  onOpenUserGuide: () => void;
   onLogout: () => void;
 }
 
@@ -36,6 +39,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenQuickSearch,
   onToggleMobileSidebar,
   onOpenNotifications,
+  onOpenUserGuide,
   onLogout,
 }) => {
   const {
@@ -161,6 +165,16 @@ export const Header: React.FC<HeaderProps> = ({
                 {unreadNotificationCount}
               </span>
             )}
+          </button>
+
+          {/* User Guide Button */}
+          <button
+            onClick={onOpenUserGuide}
+            className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-teal-50 to-teal-100/80 hover:from-teal-100 hover:to-teal-200/80 text-teal-900 rounded-2xl border border-teal-200 transition-all text-xs font-bold shadow-2xs group active:scale-95"
+            title="راهنمای جامع کاربری"
+          >
+            <HelpCircle className="w-4 h-4 text-teal-700 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">راهنما</span>
           </button>
 
           {/* User Profile Dropdown */}

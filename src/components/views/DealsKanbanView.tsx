@@ -140,7 +140,7 @@ export const DealsKanbanView: React.FC = () => {
           </div>
           <div>
             <h1 className="text-base sm:text-lg font-extrabold text-slate-800">
-              فرصت‌های فروش و کانبان (Sales Kanban)
+              فرصت‌های فروش (مراحل پیگیری فروش)
             </h1>
             <p className="text-xs text-slate-500 font-medium">
               مدیریت بصری مراحل فروش، درصد شانس موفقیت و مبلغ قراردادها

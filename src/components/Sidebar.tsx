@@ -16,6 +16,7 @@ import {
   PhoneCall,
   BarChart3,
   User as UserIcon,
+  HelpCircle,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -24,6 +25,7 @@ interface SidebarProps {
   mobileOpen: boolean;
   setMobileOpen: (open: boolean) => void;
   onOpenAddCustomer: () => void;
+  onOpenUserGuide?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -32,6 +34,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
   onOpenAddCustomer,
+  onOpenUserGuide,
 }) => {
   const { accessibleTasks, accessibleCustomers, serviceRequests, currentUser } = useCRMStore();
 
@@ -228,6 +231,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Footer Role Status Box & Logout */}
         <div className="p-4 border-t border-slate-100 mt-auto bg-slate-50/50 space-y-2">
+          {onOpenUserGuide && (
+            <button
+              onClick={onOpenUserGuide}
+              className="w-full flex items-center justify-center gap-2 bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200/80 py-2.5 px-3 rounded-2xl text-xs font-bold transition-all shadow-2xs group"
+            >
+              <HelpCircle className="w-4 h-4 text-teal-700 group-hover:scale-110 transition-transform" />
+              <span>راهنمای جامع نرم‌افزار</span>
+            </button>
+          )}
+
           <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between gap-2">
             <div>
               <div className="flex items-center gap-1.5">

@@ -24,9 +24,9 @@ export const ProductsView: React.FC = () => {
   // Form State
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
-  const [category, setCategory] = useState('نرم‌افزار');
-  const [price, setPrice] = useState('50000000');
-  const [unit, setUnit] = useState<'عدد' | 'سرویس' | 'پروژه' | 'سالانه' | 'ماهانه'>('سالانه');
+  const [category, setCategory] = useState('تجهیزات تهویه صنعتی');
+  const [price, setPrice] = useState('150000000');
+  const [unit, setUnit] = useState<'عدد' | 'سرویس' | 'پروژه' | 'سالانه' | 'ماهانه'>('عدد');
   const [description, setDescription] = useState('');
 
   const filteredProducts = products.filter(
@@ -154,7 +154,7 @@ export const ProductsView: React.FC = () => {
               className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 border border-slate-100 dir-rtl"
             >
               <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
-                <h2 className="text-sm font-bold text-slate-800">تعریف محصول یا خدمت جدید</h2>
+                <h2 className="text-sm font-bold text-slate-800">تعریف دستگاه، تجهیزات یا خدمت جدید</h2>
                 <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-700">
                   <X className="w-5 h-5" />
                 </button>
@@ -163,14 +163,14 @@ export const ProductsView: React.FC = () => {
               <form onSubmit={handleCreateProduct} className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    نام محصول یا خدمت
+                    نام دستگاه، تجهیز یا خدمت
                   </label>
                   <input
                     type="text"
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="عنوان سرویس..."
+                    placeholder="مثال: چیلر تراکمی ۱۰۰ تن، هواساز هایژنیک..."
                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
                   />
                 </div>

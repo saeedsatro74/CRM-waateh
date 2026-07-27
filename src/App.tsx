@@ -6,6 +6,7 @@ import { LoginPage } from './components/LoginPage';
 import { QuickSearchModal } from './components/QuickSearchModal';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { CustomerDetailModal } from './components/CustomerDetailModal';
+import { UserGuideModal } from './components/UserGuideModal';
 
 // Views
 import { DashboardView } from './components/views/DashboardView';
@@ -37,6 +38,7 @@ export default function App() {
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // New Customer Modal Form State
@@ -183,6 +185,7 @@ export default function App() {
         onOpenQuickSearch={() => setIsQuickSearchOpen(true)}
         onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
+        onOpenUserGuide={() => setIsUserGuideOpen(true)}
         onLogout={logout}
       />
 
@@ -219,6 +222,7 @@ export default function App() {
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
           onOpenAddCustomer={() => setActiveTab('customers_new')}
+          onOpenUserGuide={() => setIsUserGuideOpen(true)}
         />
 
         {/* View Workspace Container */}
@@ -252,6 +256,11 @@ export default function App() {
         isOpen={isNotificationDrawerOpen}
         onClose={() => setIsNotificationDrawerOpen(false)}
         onNavigateTab={setActiveTab}
+      />
+
+      <UserGuideModal
+        isOpen={isUserGuideOpen}
+        onClose={() => setIsUserGuideOpen(false)}
       />
 
       <CustomerDetailModal
