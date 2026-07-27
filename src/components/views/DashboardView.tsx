@@ -14,6 +14,8 @@ import {
   ArrowDownRight,
   Sparkles,
   PhoneCall,
+  UserCog,
+  LogIn,
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import {
@@ -29,7 +31,7 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { formatTomans, formatCompactTomans, toPersianDigits } from '../../lib/utils';
+import { formatTomans, formatCompactTomans, toPersianDigits, getAvatarSrc, handleImageError } from '../../lib/utils';
 
 interface DashboardViewProps {
   onNavigateTab: (tab: string) => void;
@@ -49,6 +51,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     communications,
     currentUser,
     isManager,
+    users,
+    allDeals,
+    allCustomers,
+    allTasks,
+    canSwitchToPanel,
+    enterUserPanel,
   } = useCRMStore();
 
   // Metrics calculations
@@ -333,6 +341,110 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Team Staff Monitoring & Panel Access for Managers / Admins */}
+      {isManager && (
+        <div className="bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 bg-indigo-50 text-indigo-700 rounded-2xl">
+                <UserCog className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">نظارت بر کارشناسان و پرسنل CRM</h3>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  مشاهده وضعیت عملکرد پرسنل و امکان ورود مستقیم به پنل هر کارشناس برای بررسی کارها و مشتریان
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => onNavigateTab('users')}
+              className="text-xs font-bold text-indigo-700 hover:text-indigo-800 flex items-center gap-1 self-start sm:self-auto"
+            >
+              <span>مدیریت کامل کاربران ({users.length})</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {users.map((staff) => {
+              const staffDealsCount = allDeals.filter((d) => d.assignedToUserId === staff.id).length;
+              const staffCustomersCount = allCustomers.filter((c) => c.assignedToUserId === staff.id).length;
+              const staffPendingTasksCount = allTasks.filter(
+                (t) => t.assignedToUserId === staff.id && t.status !== 'completed'
+              ).length;
+              const isSelf = currentUser?.id === staff.id;
+
+              return (
+                <div
+                  key={staff.id}
+                  className={`p-4 rounded-2xl border transition-all ${
+                    isSelf
+                      ? 'bg-teal-50/50 border-teal-200'
+                      : 'bg-slate-50/70 border-slate-200/80 hover:bg-slate-50 hover:border-indigo-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <img
+                        src={getAvatarSrc(staff.avatar)}
+                        onError={handleImageError}
+                        alt={staff.name}
+                        className="w-10 h-10 rounded-xl object-cover ring-2 ring-slate-200 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1">
+                          <span>{staff.name}</span>
+                          {isSelf && (
+                            <span className="text-[9px] bg-teal-600 text-white px-1.5 py-0.2 rounded font-extrabold">
+                              شما
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium truncate">
+                          {staff.department || 'واحد CRM'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1 py-2 px-2 bg-white rounded-xl border border-slate-100 text-center text-[11px] mb-3">
+                    <div>
+                      <span className="block text-[10px] text-slate-400 font-medium">مشتریان</span>
+                      <strong className="text-slate-800 font-mono">{toPersianDigits(staffCustomersCount)}</strong>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-slate-400 font-medium">فرصت‌ها</span>
+                      <strong className="text-slate-800 font-mono">{toPersianDigits(staffDealsCount)}</strong>
+                    </div>
+                    <div>
+                      <span className="block text-[10px] text-slate-400 font-medium">پیگیری‌ها</span>
+                      <strong className="text-amber-700 font-mono">{toPersianDigits(staffPendingTasksCount)}</strong>
+                    </div>
+                  </div>
+
+                  {isSelf ? (
+                    <div className="w-full py-1.5 text-center text-[11px] font-bold text-teal-700 bg-teal-100/60 rounded-xl">
+                      پنل فعال شما
+                    </div>
+                  ) : canSwitchToPanel(staff) ? (
+                    <button
+                      onClick={() => enterUserPanel(staff)}
+                      className="w-full py-2 px-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-xs active:scale-95 flex items-center justify-center gap-1.5"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      <span>ورود به پنل کارشناس</span>
+                    </button>
+                  ) : (
+                    <div className="w-full py-1.5 text-center text-[11px] font-semibold text-slate-500 bg-slate-100 rounded-xl">
+                      مدیر / سطح دسترسی بالا
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Lower Section: Urgent Tasks & Recent Communications */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

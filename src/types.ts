@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'sales' | 'support';
+export type UserRole = 'admin' | 'sales_manager' | 'sales' | 'service';
 
 export interface User {
   id: string;
@@ -9,6 +9,7 @@ export interface User {
   phone: string;
   department: string;
   isActive: boolean;
+  position?: string;
 }
 
 export type CustomerType = 'company' | 'person';

@@ -15,6 +15,7 @@ import {
   Building2,
   PhoneCall,
   BarChart3,
+  User as UserIcon,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -44,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: LayoutDashboard,
       color: 'text-indigo-600 bg-indigo-50 group-hover:bg-indigo-100',
       activeBg: 'bg-indigo-600 text-white shadow-md shadow-indigo-200',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'sales_manager'],
     },
     {
       id: 'customers',
@@ -54,7 +55,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       activeBg: 'bg-sky-600 text-white shadow-md shadow-sky-200',
       badge: accessibleCustomers.length > 0 ? accessibleCustomers.length : null,
       badgeBg: 'bg-slate-200 text-slate-700',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'sales_manager', 'sales', 'service'],
     },
     {
       id: 'customers_new',
@@ -62,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: UserPlus,
       color: 'text-emerald-600 bg-emerald-50 group-hover:bg-emerald-100',
       activeBg: 'bg-emerald-600 text-white shadow-md shadow-emerald-200',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'sales_manager', 'sales'],
     },
     {
       id: 'sales',
@@ -70,7 +71,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Target,
       color: 'text-purple-600 bg-purple-50 group-hover:bg-purple-100',
       activeBg: 'bg-purple-600 text-white shadow-md shadow-purple-200',
-      roles: ['admin', 'sales'],
+      roles: ['admin', 'sales_manager', 'sales'],
     },
     {
       id: 'services',
@@ -80,7 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       activeBg: 'bg-teal-600 text-white shadow-md shadow-teal-200',
       badge: activeServicesCount > 0 ? activeServicesCount : null,
       badgeBg: 'bg-amber-500 text-white animate-pulse',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'service'],
     },
     {
       id: 'products',
@@ -88,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Package,
       color: 'text-blue-600 bg-blue-50 group-hover:bg-blue-100',
       activeBg: 'bg-blue-600 text-white shadow-md shadow-blue-200',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'sales_manager'],
     },
     {
       id: 'tasks',
@@ -98,23 +99,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
       activeBg: 'bg-amber-600 text-white shadow-md shadow-amber-200',
       badge: pendingTaskCount > 0 ? pendingTaskCount : null,
       badgeBg: 'bg-rose-500 text-white',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin', 'sales_manager', 'sales', 'service'],
+    },
+    {
+      id: 'reports',
+      label: 'گزارش‌های تحلیل و فروش',
+      icon: BarChart3,
+      color: 'text-indigo-600 bg-indigo-50 group-hover:bg-indigo-100',
+      activeBg: 'bg-indigo-700 text-white shadow-md shadow-indigo-300',
+      roles: ['admin', 'sales_manager'],
     },
     {
       id: 'users',
-      label: 'کاربران و پرسنل',
+      label: 'مدیریت کاربران',
       icon: UserCog,
       color: 'text-rose-600 bg-rose-50 group-hover:bg-rose-100',
       activeBg: 'bg-rose-600 text-white shadow-md shadow-rose-200',
       roles: ['admin'],
     },
     {
+      id: 'profile',
+      label: 'پروفایل کاربری من',
+      icon: UserIcon,
+      color: 'text-teal-600 bg-teal-50 group-hover:bg-teal-100',
+      activeBg: 'bg-teal-700 text-white shadow-md shadow-teal-200',
+      roles: ['admin', 'sales_manager', 'sales', 'service'],
+    },
+    {
       id: 'settings',
-      label: 'تنظیمات و دیتابیس',
+      label: 'تنظیمات سیستم',
       icon: Settings,
       color: 'text-slate-600 bg-slate-100 group-hover:bg-slate-200',
       activeBg: 'bg-slate-800 text-white shadow-md shadow-slate-300',
-      roles: ['admin', 'sales', 'support'],
+      roles: ['admin'],
     },
   ];
 
@@ -209,16 +226,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           })}
         </nav>
 
-        {/* Footer Role Status Box */}
-        <div className="p-4 border-t border-slate-100 mt-auto bg-slate-50/50">
-          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[11px] font-bold text-slate-800">سامانه صنعتی شرکت واته</span>
+        {/* Footer Role Status Box & Logout */}
+        <div className="p-4 border-t border-slate-100 mt-auto bg-slate-50/50 space-y-2">
+          <div className="bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between gap-2">
+            <div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[11px] font-bold text-slate-800">{currentUser?.name}</span>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-0.5 font-medium truncate">
+                {currentUser?.department}
+              </p>
             </div>
-            <p className="text-[10px] text-slate-500 mt-1 font-medium">
-              آماده اتصال به دیتابیس Supabase
-            </p>
           </div>
         </div>
       </aside>

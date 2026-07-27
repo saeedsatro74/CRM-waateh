@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from 'clsx';
+import React from 'react';
 
 export function cn(...inputs: ClassValue[]) {
   return inputs.filter(Boolean).join(' ');
@@ -77,4 +78,23 @@ export function exportToCSV(filename: string, headers: string[], rows: (string |
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+}
+
+// Avatar Helpers
+export const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250';
+
+export function getAvatarSrc(avatar?: string): string {
+  if (!avatar) return DEFAULT_AVATAR;
+  if (avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('data:')) {
+    return avatar;
+  }
+  if (avatar.startsWith('/')) {
+    return avatar;
+  }
+  return `/${avatar}`;
+}
+
+export function handleImageError(e: React.SyntheticEvent<HTMLImageElement, Event>) {
+  e.currentTarget.onerror = null;
+  e.currentTarget.src = DEFAULT_AVATAR;
 }

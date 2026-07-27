@@ -1,83 +1,43 @@
 import React, { useState } from 'react';
 import { useCRMStore } from '../../lib/store';
-import { UserRole } from '../../types';
 import {
   Settings,
-  User,
-  Shield,
   Building2,
-  Database,
-  Copy,
+  ShieldCheck,
+  UserCheck,
+  Headphones,
+  Bell,
   Check,
   RotateCcw,
-  Plus,
-  Trash2,
-  Lock,
+  Sparkles,
+  Save,
+  Globe,
   Mail,
   Phone,
-  Code,
-  Sparkles,
-  Server,
+  MapPin,
+  CheckCircle2,
+  Users,
 } from 'lucide-react';
-import { SUPABASE_SQL_SCHEMA, isSupabaseConfigured } from '../../lib/supabase';
-import { motion } from 'motion/react';
 
 export const SettingsView: React.FC = () => {
-  const {
-    settings,
-    updateSettings,
-    state,
-    addUser,
-    updateUserRole,
-    resetDataToDefault,
-    currentUser,
-    isManager,
-  } = useCRMStore();
+  const { settings, updateSettings, resetDataToDefault } = useCRMStore();
 
-  const [activeTab, setActiveTab] = useState<'users' | 'company' | 'database'>('users');
-
-  // Copy SQL State
-  const [copiedSql, setCopiedSql] = useState(false);
-
-  // New User Form State
-  const [showAddUser, setShowAddUser] = useState(false);
-  const [newUserName, setNewUserName] = useState('');
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPhone, setNewUserPhone] = useState('');
-  const [newUserRole, setNewUserRole] = useState<UserRole>('sales');
-  const [newUserDept, setNewUserDept] = useState('دپارتمان فروش');
+  const [activeTab, setActiveTab] = useState<'company' | 'roles' | 'notifications'>('company');
 
   // Company Form State
-  const [companyName, setCompanyName] = useState(settings.companyName);
-  const [phone, setPhone] = useState(settings.phone);
-  const [address, setAddress] = useState(settings.address);
-  const [email, setEmail] = useState(settings.email);
+  const [companyName, setCompanyName] = useState(settings.companyName || 'شرکت تهویه واته');
+  const [phone, setPhone] = useState(settings.phone || '۰۲۱-۸۸۸۸۰۰۰۰');
+  const [address, setAddress] = useState(settings.address || 'تهران، خیابان ولیعصر، بالاتر از ظفر، مجتمع صنعتی واته');
+  const [email, setEmail] = useState(settings.email || 'info@waateh.com');
+  const [website, setWebsite] = useState(settings.website || 'https://waateh.com');
+  const [tagline, setTagline] = useState(settings.tagline || 'تولیدکننده پیشرو تجهیزات سرمایشی و گرمایشی صنعتی');
   const [savedSettingsMsg, setSavedSettingsMsg] = useState(false);
 
-  const handleCopySQL = () => {
-    navigator.clipboard.writeText(SUPABASE_SQL_SCHEMA);
-    setCopiedSql(true);
-    setTimeout(() => setCopiedSql(false), 2000);
-  };
-
-  const handleAddUserSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newUserName.trim() || !newUserEmail.trim()) return;
-
-    addUser({
-      name: newUserName,
-      email: newUserEmail,
-      role: newUserRole,
-      phone: newUserPhone || '۰۹۱۲۰۰۰۰۰۰۰',
-      department: newUserDept,
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
-      isActive: true,
-    });
-
-    setNewUserName('');
-    setNewUserEmail('');
-    setShowAddUser(false);
-  };
+  // Notification Preferences State
+  const [notifyNewLead, setNotifyNewLead] = useState(true);
+  const [notifyTaskOverdue, setNotifyTaskOverdue] = useState(true);
+  const [notifyNewService, setNotifyNewService] = useState(true);
+  const [notifyDealWon, setNotifyDealWon] = useState(true);
 
   const handleSaveCompanySettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,344 +46,302 @@ export const SettingsView: React.FC = () => {
       phone,
       address,
       email,
+      website,
+      tagline,
     });
     setSavedSettingsMsg(true);
     setTimeout(() => setSavedSettingsMsg(false), 2500);
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-8">
+    <div className="space-y-6 dir-rtl animate-fadeIn pb-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs">
         <div className="flex items-center gap-3">
-          <div className="p-3 bg-slate-100 text-slate-700 rounded-2xl">
+          <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl">
             <Settings className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-base sm:text-lg font-extrabold text-slate-800">
-              تنظیمات سیستم، کاربران و اتصالات
-            </h1>
-            <p className="text-xs text-slate-500 font-medium">
-              مدیریت سطح دسترسی، مشخصات شرکت و اسکریپت دیتابیس Supabase
+            <h1 className="text-lg font-bold text-slate-900">تنظیمات مدیریتی CRM WAATEH</h1>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              مدیریت برندینگ شرکت تهویه واته، ساختار نقش‌ها و تنظیمات عمومی اعلان‌ها
             </p>
           </div>
         </div>
 
         <button
           onClick={() => {
-            if (confirm('آیا از بازنشانی کلیه داده‌ها به حالت اولیه پیش‌فرض اطمینان دارید؟')) {
+            if (confirm('آیا از بازنشانی داده‌های نمونه سیستم اطمینان دارید؟')) {
               resetDataToDefault();
             }
           }}
-          className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-2xl text-xs transition-colors flex items-center gap-1.5 border border-rose-200"
+          className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 border border-rose-200 shrink-0"
         >
           <RotateCcw className="w-4 h-4" />
           <span>بازنشانی داده‌های نمونه</span>
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 px-2 text-xs font-bold">
-        <button
-          onClick={() => setActiveTab('users')}
-          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'users'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Shield className="w-4 h-4" />
-          <span>مدیریت کاربران و نقش‌ها ({state.users.length})</span>
-        </button>
+      {/* Tabs Header */}
+      <div className="flex border-b border-slate-200 px-2 text-xs font-bold gap-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('company')}
           className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
             activeTab === 'company'
-              ? 'border-indigo-600 text-indigo-600'
+              ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
           <Building2 className="w-4 h-4" />
-          <span>تنظیمات عمومی شرکت</span>
+          <span>اطلاعات و برندینگ شرکت تهویه واته</span>
         </button>
+
         <button
-          onClick={() => setActiveTab('database')}
+          onClick={() => setActiveTab('roles')}
           className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
-            activeTab === 'database'
-              ? 'border-indigo-600 text-indigo-600'
+            activeTab === 'roles'
+              ? 'border-teal-700 text-teal-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <Database className="w-4 h-4" />
-          <span>اتصال دیتابیس Supabase</span>
+          <Users className="w-4 h-4" />
+          <span>راهنمای نقش‌ها و سطح دسترسی‌ها</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`py-3 px-4 border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'notifications'
+              ? 'border-teal-700 text-teal-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Bell className="w-4 h-4" />
+          <span>تنظیمات اعلان‌های هوشمند</span>
         </button>
       </div>
 
-      {/* Users & RBAC Tab */}
-      {activeTab === 'users' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-800">لیست کارمندان و سطح دسترسی (RBAC)</h2>
-            {isManager && (
-              <button
-                onClick={() => setShowAddUser(true)}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition-all shadow-xs flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" />
-                <span>افزودن کاربر جدید</span>
-              </button>
-            )}
-          </div>
-
-          {/* Add User Modal */}
-          {showAddUser && (
-            <form
-              onSubmit={handleAddUserSubmit}
-              className="p-5 bg-indigo-50/50 rounded-3xl border border-indigo-200 space-y-3"
-            >
-              <h3 className="text-xs font-bold text-indigo-900 mb-2">ثبت مشخصات کاربر جدید</h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  required
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  placeholder="نام و نام خانوادگی..."
-                  className="bg-white border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-                />
-                <input
-                  type="email"
-                  required
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  placeholder="ایمیل کاربر..."
-                  className="bg-white border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value as UserRole)}
-                  className="bg-white border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-                >
-                  <option value="sales">کارشناس فروش</option>
-                  <option value="support">پشتیبانی مشتریان</option>
-                  <option value="admin">مدیر ارشد سیستم</option>
-                </select>
-
-                <input
-                  type="text"
-                  value={newUserDept}
-                  onChange={(e) => setNewUserDept(e.target.value)}
-                  placeholder="دپارتمان..."
-                  className="bg-white border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddUser(false)}
-                  className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl text-xs font-bold"
-                >
-                  انصراف
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl text-xs font-bold"
-                >
-                  ذخیره کاربر
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* User Table */}
-          <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 font-bold text-slate-600">
-                  <tr>
-                    <th className="p-4">تصویر و نام کاربر</th>
-                    <th className="p-4">پست الکترونیکی</th>
-                    <th className="p-4">دپارتمان</th>
-                    <th className="p-4">نقش و سطح دسترسی</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-medium">
-                  {state.users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/80">
-                      <td className="p-4 flex items-center gap-3">
-                        <img
-                          src={u.avatar}
-                          alt={u.name}
-                          className="w-8 h-8 rounded-xl object-cover"
-                        />
-                        <span className="font-bold text-slate-800">{u.name}</span>
-                      </td>
-                      <td className="p-4 font-mono dir-ltr text-right">{u.email}</td>
-                      <td className="p-4">{u.department}</td>
-                      <td className="p-4">
-                        <select
-                          value={u.role}
-                          disabled={!isManager}
-                          onChange={(e) => updateUserRole(u.id, e.target.value as UserRole)}
-                          className="bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-slate-700 outline-none"
-                        >
-                          <option value="admin">مدیر (دسترسی کامل)</option>
-                          <option value="sales">فروش (مشتریان مرتبط)</option>
-                          <option value="support">پشتیبانی</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Company Tab */}
+      {/* Tab 1: Company Info */}
       {activeTab === 'company' && (
         <form
           onSubmit={handleSaveCompanySettings}
-          className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4 max-w-xl"
+          className="bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs space-y-4 max-w-2xl"
         >
-          <h2 className="text-sm font-bold text-slate-800">برندینگ و اطلاعات شرکت</h2>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">نام رسمی شرکت</label>
-            <input
-              type="text"
-              required
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none focus:border-indigo-500"
-            />
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-2">
+            <Building2 className="w-5 h-5 text-teal-700" />
+            <h2 className="text-sm font-bold text-slate-900">مشخصات سازمانی و ارتباطی شرکت تهویه واته</h2>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">شماره تلفن پشتیبانی</label>
-            <input
-              type="text"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">نام رسمی مجموعه</label>
+              <input
+                type="text"
+                required
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 font-medium outline-none focus:border-teal-600 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">شعار سازمانی / فعالیت</label>
+              <input
+                type="text"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 font-medium outline-none focus:border-teal-600 focus:bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">شماره تلفن مرکزی پشتیبانی</label>
+              <div className="relative">
+                <Phone className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                <input
+                  type="text"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-9 pl-3 py-2.5 text-xs text-slate-800 font-medium outline-none focus:border-teal-600 focus:bg-white dir-ltr text-right"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">پست الکترونیکی رسمی</label>
+              <div className="relative">
+                <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-9 pl-3 py-2.5 text-xs text-slate-800 font-mono outline-none focus:border-teal-600 focus:bg-white dir-ltr text-right"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">وب‌سایت رسمی شرکت</label>
+              <div className="relative">
+                <Globe className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                <input
+                  type="text"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-9 pl-3 py-2.5 text-xs text-slate-800 font-mono outline-none focus:border-teal-600 focus:bg-white dir-ltr text-right"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">نشانی دفتر مرکزی / کارخانه</label>
+              <div className="relative">
+                <MapPin className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
+                <textarea
+                  rows={2}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pr-9 pl-3 py-2.5 text-xs text-slate-800 font-medium outline-none focus:border-teal-600 focus:bg-white"
+                />
+              </div>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">نشانی دفتر مرکزی</label>
-            <textarea
-              rows={3}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-2.5 text-xs text-slate-800 outline-none"
-            />
-          </div>
-
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-3 border-t border-slate-100">
             <button
               type="submit"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition-all shadow-md shadow-indigo-200"
+              className="px-5 py-2.5 bg-gradient-to-r from-teal-700 to-slate-900 hover:from-teal-800 hover:to-slate-950 text-white font-bold rounded-2xl text-xs shadow-md shadow-teal-900/20 transition-all flex items-center gap-2 active:scale-95"
             >
-              ذخیره تغییرات
+              <Save className="w-4 h-4" />
+              <span>ذخیره تغییرات مشخصات شرکت</span>
             </button>
+
             {savedSettingsMsg && (
-              <span className="text-xs font-bold text-emerald-600">تغییرات با موفقیت ذخیره شد!</span>
+              <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <Check className="w-4 h-4" />
+                <span>تنظیمات با موفقیت ثبت گردید.</span>
+              </span>
             )}
           </div>
         </form>
       )}
 
-      {/* Database Supabase Tab */}
-      {activeTab === 'database' && (
-        <div className="space-y-6">
-          {/* Status Alert Banner */}
-          <div className={`p-5 rounded-3xl border ${isSupabaseConfigured ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-            <div className="flex items-start gap-3">
-              <Server className={`w-6 h-6 shrink-0 mt-0.5 ${isSupabaseConfigured ? 'text-emerald-600' : 'text-amber-600'}`} />
-              <div className="space-y-2 w-full">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-slate-800">
-                    {isSupabaseConfigured ? 'کلیدهای Supabase شناسایی شدند' : 'کلیدهای اتصال Supabase ست نشده‌اند'}
-                  </h2>
-                  <span className={`px-2.5 py-1 rounded-xl text-[11px] font-bold ${isSupabaseConfigured ? 'bg-emerald-200 text-emerald-800' : 'bg-amber-200 text-amber-900'}`}>
-                    {isSupabaseConfigured ? 'اتصال برقرار است' : 'حالت آفلاین (ذخیره در مرورگر)'}
-                  </span>
+      {/* Tab 2: Roles & Permissions Breakdown */}
+      {activeTab === 'roles' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs space-y-4">
+            <h2 className="text-sm font-bold text-slate-900">ساختار سطوح دسترسی و مسئولیت‌ها در CRM WAATEH</h2>
+            <p className="text-xs text-slate-500">
+              این سیستم بر پایه ۴ سطح دسترسی سازمانی طراحی شده است تا کارمندان فقط به اطلاعات مرتبط با بخش خود دسترسی داشته باشند:
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Admin Role */}
+              <div className="p-4 rounded-2xl bg-rose-50/60 border border-rose-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-rose-600" />
+                  <h3 className="text-xs font-bold text-rose-900">۱- مدیر ارشد سیستم (Admin)</h3>
                 </div>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {isSupabaseConfigured
-                    ? 'سامانه به URL و ANON_KEY دیتابیس Supabase متصل است. در صورت عدم ثبت داده‌ها، باید حتماً کد SQL زیر را در بخش SQL Editor در داشبورد Supabase اجرا کنید.'
-                    : 'در حال حاضر کلیدهای VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY مقداردهی نشده‌اند. برای اتصال به دیتابیس آنلاین واقعی، باید این دو کلید را در فایل .env یا تنظیمات برنامه وارد نمایید.'}
-                </p>
+                <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                  <li>دسترسی کامل به تمامی بخش‌های سیستم</li>
+                  <li>مدیریت و تعریف کاربران، تغییر نقش‌ها و فعال/غیرفعال‌سازی</li>
+                  <li>مشاهده کلیه گزارش‌های تحلیل فروش و مالی</li>
+                  <li>مدیریت تنظیمات عمومی شرکت</li>
+                </ul>
+              </div>
 
-                {state.supabaseError && (
-                  <div className="p-3 bg-rose-100 border border-rose-300 rounded-2xl text-rose-800 text-xs font-medium dir-rtl">
-                    <strong>پیام خطای دیتابیس:</strong> {state.supabaseError}
-                  </div>
-                )}
+              {/* Sales Manager Role */}
+              <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-xs font-bold text-indigo-900">۲- مدیر فروش (Sales Manager)</h3>
+                </div>
+                <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                  <li>دسترسی به تمامی مشتریان، لیدها و معامله‌های سازمان</li>
+                  <li>مدیریت وظایف تیم فروش و تخصیص لیدها</li>
+                  <li>دسترسی به گزارش‌ها و آمار کل فروش</li>
+                  <li>مدیریت لیست محصولات و تجهیزات صنعتی</li>
+                </ul>
+              </div>
+
+              {/* Sales Representative Role */}
+              <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-xs font-bold text-emerald-900">۳- کارشناس فروش (Sales)</h3>
+                </div>
+                <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                  <li>دسترسی به مشتریان و لیدهای تخصیص‌یافته به خود</li>
+                  <li>ثبت و پیگیری کانبان معامله‌ها و پیش‌فاکتورها</li>
+                  <li>ثبت وظایف، تماس‌ها و پیگیری‌های روزانه</li>
+                </ul>
+              </div>
+
+              {/* Service & Repair Role */}
+              <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Headphones className="w-5 h-5 text-teal-600" />
+                  <h3 className="text-xs font-bold text-teal-900">۴- پشتیبانی و خدمات فنی (Service)</h3>
+                </div>
+                <ul className="text-[11px] text-slate-600 space-y-1 list-disc list-inside">
+                  <li>دسترسی اختصاصی به ماژول خدمات، سرویس و تعمیرات تجهیزات</li>
+                  <li>ثبت و پیگیری درخواست‌های نصب، گارانتی و عیب‌یابی</li>
+                  <li>ارتباط با مشتریان دریافت‌کننده خدمات فنی</li>
+                </ul>
               </div>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Step by Step Setup Guide */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-600" />
-              <span>مراحل راه اندازی و اتصال دیتابیس آنلاین (۳ گام ساده)</span>
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs">۱</div>
-                <h4 className="font-bold text-slate-800">ثبت کلیدهای پروژه</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  وارد پروژه خود در <code className="bg-slate-200 px-1 py-0.5 rounded dir-ltr inline-block">supabase.com</code> شوید و از بخش <strong>Project Settings &gt; API</strong> مقادیر <code className="bg-slate-200 px-1 rounded dir-ltr inline-block">URL</code> و <code className="bg-slate-200 px-1 rounded dir-ltr inline-block">anon key</code> را در <code className="bg-slate-200 px-1 rounded dir-ltr inline-block">.env</code> ست کنید.
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs">۲</div>
-                <h4 className="font-bold text-slate-800">کپی کد SQL</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  روی دکمه سبز رنگ <strong>«کپی اسکریپت SQL دیتابیس»</strong> در پایین کلیک کنید تا دستورات ساخت جداول مشتریان، خدمات و فروش کپی شوند.
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                <div className="w-6 h-6 bg-indigo-600 text-white rounded-full flex items-center justify-center font-bold text-xs">۳</div>
-                <h4 className="font-bold text-slate-800">اجرا در SQL Editor</h4>
-                <p className="text-slate-500 leading-relaxed">
-                  در داشبورد Supabase به منوی <strong>SQL Editor</strong> بروید، یک <strong>New Query</strong> ایجاد کنید، کد کپی شده را پِست (Paste) کرده و <strong>Run</strong> کنید.
-                </p>
-              </div>
-            </div>
+      {/* Tab 3: Notification Preferences */}
+      {activeTab === 'notifications' && (
+        <div className="bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs space-y-4 max-w-xl">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 mb-2">
+            <Bell className="w-5 h-5 text-teal-700" />
+            <h2 className="text-sm font-bold text-slate-900">تنظیمات دریافت اعلان‌های سیستم CRM</h2>
           </div>
 
-          {/* SQL Code Box */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-sm font-bold text-slate-800">کد آماده SQL برای ساخت جداول دیتابیس</h3>
-                <p className="text-xs text-slate-500">کد زیر ساختار جداول customers, services, deals, leads, products, users را ایجاد می‌کند.</p>
-              </div>
+          <div className="space-y-3">
+            <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
+              <span className="text-xs font-bold text-slate-800">اعلان ثبت لید یا فرصت جدید فروش</span>
+              <input
+                type="checkbox"
+                checked={notifyNewLead}
+                onChange={(e) => setNotifyNewLead(e.target.checked)}
+                className="w-4 h-4 text-teal-700 rounded-md focus:ring-teal-600"
+              />
+            </label>
 
-              <button
-                onClick={handleCopySQL}
-                className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs shrink-0"
-              >
-                {copiedSql ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{copiedSql ? 'کد کپی شد!' : 'کپی اسکریپت SQL دیتابیس'}</span>
-              </button>
-            </div>
+            <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
+              <span className="text-xs font-bold text-slate-800">هشدار سررسید وظایف و پیگیری‌های عقب‌افتاده</span>
+              <input
+                type="checkbox"
+                checked={notifyTaskOverdue}
+                onChange={(e) => setNotifyTaskOverdue(e.target.checked)}
+                className="w-4 h-4 text-teal-700 rounded-md focus:ring-teal-600"
+              />
+            </label>
 
-            <div className="p-4 bg-slate-900 text-emerald-400 rounded-2xl font-mono text-[11px] dir-ltr overflow-x-auto max-h-96 leading-relaxed border border-slate-800">
-              <pre className="whitespace-pre-wrap">{SUPABASE_SQL_SCHEMA}</pre>
-            </div>
+            <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
+              <span className="text-xs font-bold text-slate-800">اعلان ثبت درخواست جدید خدمات فنی یا تعمیرات</span>
+              <input
+                type="checkbox"
+                checked={notifyNewService}
+                onChange={(e) => setNotifyNewService(e.target.checked)}
+                className="w-4 h-4 text-teal-700 rounded-md focus:ring-teal-600"
+              />
+            </label>
+
+            <label className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 cursor-pointer">
+              <span className="text-xs font-bold text-slate-800">اعلان موفقیت‌آمیز بودن نهایی‌سازی معامله (Deal Won)</span>
+              <input
+                type="checkbox"
+                checked={notifyDealWon}
+                onChange={(e) => setNotifyDealWon(e.target.checked)}
+                className="w-4 h-4 text-teal-700 rounded-md focus:ring-teal-600"
+              />
+            </label>
           </div>
         </div>
       )}

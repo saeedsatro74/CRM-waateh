@@ -20,16 +20,16 @@ import { CommunicationsView } from './components/views/CommunicationsView';
 import { ReportsView } from './components/views/ReportsView';
 import { UsersView } from './components/views/UsersView';
 import { SettingsView } from './components/views/SettingsView';
+import { ProfileView } from './components/views/ProfileView';
 import { NotFoundView } from './components/views/NotFoundView';
 
 import { CustomerStatus, CustomerType } from './types';
-import { X, UserPlus } from 'lucide-react';
+import { X, UserPlus, Eye, ShieldCheck, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {
-  const { currentUser, addCustomer } = useCRMStore();
+  const { currentUser, primaryUser, exitUserPanel, addCustomer, logout } = useCRMStore();
 
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
   const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   // Modals state
@@ -53,8 +53,8 @@ export default function App() {
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('مشتری جدید، تجهیزات صنعتی');
 
-  if (!isLoggedIn || !currentUser) {
-    return <LoginPage onLoginSuccess={() => setIsLoggedIn(true)} />;
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={() => {}} />;
   }
 
   const handleAddCustomerSubmit = (e: React.FormEvent) => {
@@ -94,8 +94,43 @@ export default function App() {
     setShowAddCustomerModal(false);
   };
 
+  const userRole = currentUser?.role || 'sales';
+
+  const isTabAllowed = (tab: string, role: string) => {
+    if (tab === 'profile') return true;
+    switch (role) {
+      case 'admin':
+        return true;
+      case 'sales_manager':
+        return ['dashboard', 'customers', 'customers_new', 'sales', 'deals', 'leads', 'products', 'tasks', 'reports', 'profile'].includes(tab);
+      case 'sales':
+        return ['customers', 'customers_new', 'sales', 'deals', 'leads', 'tasks', 'profile'].includes(tab);
+      case 'service':
+        return ['customers', 'services', 'tasks', 'profile'].includes(tab);
+      default:
+        return ['customers', 'profile'].includes(tab);
+    }
+  };
+
+  const getDefaultTabForRole = (role: string) => {
+    switch (role) {
+      case 'admin':
+      case 'sales_manager':
+        return 'dashboard';
+      case 'service':
+        return 'services';
+      case 'sales':
+      default:
+        return 'customers';
+    }
+  };
+
+  const currentActiveTab = isTabAllowed(activeTab, userRole)
+    ? activeTab
+    : getDefaultTabForRole(userRole);
+
   const renderActiveView = () => {
-    switch (activeTab) {
+    switch (currentActiveTab) {
       case 'dashboard':
         return (
           <DashboardView
@@ -130,10 +165,12 @@ export default function App() {
         return <ReportsView />;
       case 'users':
         return <UsersView />;
+      case 'profile':
+        return <ProfileView />;
       case 'settings':
         return <SettingsView />;
       default:
-        return <NotFoundView onNavigateHome={() => setActiveTab('dashboard')} />;
+        return <NotFoundView onNavigateHome={() => setActiveTab(getDefaultTabForRole(userRole))} />;
     }
   };
 
@@ -141,19 +178,43 @@ export default function App() {
     <div className="min-h-screen bg-[#f0f4f8] text-slate-800 font-sans flex flex-col dir-rtl selection:bg-teal-700 selection:text-white">
       {/* Top Bar Header */}
       <Header
-        activeTab={activeTab}
+        activeTab={currentActiveTab}
         setActiveTab={setActiveTab}
         onOpenQuickSearch={() => setIsQuickSearchOpen(true)}
         onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
-        onLogout={() => setIsLoggedIn(false)}
+        onLogout={logout}
       />
+
+      {/* Active Panel Supervision Banner */}
+      {primaryUser && (
+        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-semibold shadow-md border-b border-indigo-500/30 z-40">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-indigo-300 shrink-0 animate-pulse" />
+            <span>
+              شما با حساب اصلی <strong className="text-teal-300">{primaryUser.name} ({primaryUser.role === 'admin' ? 'مدیر ارشد' : 'مدیر فروش'})</strong> در حال بررسی و نظارت بر پنل پرسنل <strong className="text-amber-300">{currentUser?.name} ({currentUser?.department || currentUser?.role})</strong> هستید.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              exitUserPanel();
+              setActiveTab('dashboard');
+            }}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-[11px] shadow-xs transition-all active:scale-95 flex items-center gap-1.5 shrink-0 self-end sm:self-auto"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+            <span>خروج از پنل و بازگشت به حساب اصلی شما ({primaryUser.name})</span>
+          </button>
+        </div>
+      )}
+
+
 
       {/* Main Container Layout */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         {/* Navigation Sidebar */}
         <Sidebar
-          activeTab={activeTab}
+          activeTab={currentActiveTab}
           setActiveTab={setActiveTab}
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
@@ -164,7 +225,7 @@ export default function App() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeTab}
+              key={currentActiveTab}
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}

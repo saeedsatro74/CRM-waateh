@@ -27,12 +27,13 @@ import {
   initialCompanySettings,
   initialServiceRequests,
 } from './initialData';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEY = 'waateh_crm_app_data_v3';
 
 interface CRMDataState {
   currentUser: User | null;
+  primaryUser: User | null;
   users: User[];
   customers: Customer[];
   leads: Lead[];
@@ -53,9 +54,28 @@ function loadInitialState(): CRMDataState {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      const loadedUsers: User[] = parsed.users?.length ? parsed.users : initialUsers;
+
+      // Always ensure Saeed Samimipour exists in users
+      const saeedInInitial = initialUsers.find(u => u.email === 'saeedsatro7@gmail.com');
+      if (saeedInInitial && !loadedUsers.some(u => u.email === saeedInInitial.email)) {
+        loadedUsers.unshift(saeedInInitial);
+      }
+
+      let loadedCurrentUser: User | null = parsed.currentUser !== undefined ? parsed.currentUser : initialUsers[0];
+      if (loadedCurrentUser) {
+        const matched = loadedUsers.find(
+          (u) => u.email.trim().toLowerCase() === loadedCurrentUser?.email.trim().toLowerCase() || u.id === loadedCurrentUser?.id
+        );
+        if (matched) {
+          loadedCurrentUser = { ...loadedCurrentUser, ...matched };
+        }
+      }
+
       return {
-        currentUser: parsed.currentUser || initialUsers[0],
-        users: parsed.users?.length ? parsed.users : initialUsers,
+        currentUser: loadedCurrentUser,
+        primaryUser: null,
+        users: loadedUsers,
         customers: parsed.customers?.length ? parsed.customers : initialCustomers,
         leads: parsed.leads?.length ? parsed.leads : initialLeads,
         deals: parsed.deals?.length ? parsed.deals : initialDeals,
@@ -76,6 +96,7 @@ function loadInitialState(): CRMDataState {
 
   return {
     currentUser: initialUsers[0],
+    primaryUser: null,
     users: initialUsers,
     customers: initialCustomers,
     leads: initialLeads,
@@ -103,12 +124,13 @@ function notify() {
 let hasFetchedSupabase = false;
 
 async function syncWithSupabase() {
-  if (!supabase || !isSupabaseConfigured || hasFetchedSupabase) return;
+  const client = getSupabaseClient();
+  if (!client || hasFetchedSupabase) return;
   hasFetchedSupabase = true;
 
   try {
     // 1. Fetch Customers
-    const { data: custData, error: custErr } = await supabase.from('customers').select('*').order('created_at', { ascending: false });
+    const { data: custData, error: custErr } = await client.from('customers').select('*').order('created_at', { ascending: false });
     if (custErr) {
       console.warn('Supabase Customers fetch error:', custErr.message);
       globalState.supabaseError = `خطا در دریافت جدول مشتریان: ${custErr.message}. لطفاً اسکریپت SQL را در Supabase اجرا کنید.`;
@@ -142,7 +164,7 @@ async function syncWithSupabase() {
     }
 
     // 2. Fetch Services
-    const { data: srvData } = await supabase.from('services').select('*').order('created_at', { ascending: false });
+    const { data: srvData } = await client.from('services').select('*').order('created_at', { ascending: false });
     if (srvData && srvData.length > 0) {
       globalState.serviceRequests = srvData.map((s: any) => {
         let statusValue: ServiceStatus = 'registered';
@@ -174,7 +196,7 @@ async function syncWithSupabase() {
     }
 
     // 3. Fetch Deals
-    const { data: dealsData } = await supabase.from('deals').select('*').order('created_at', { ascending: false });
+    const { data: dealsData } = await client.from('deals').select('*').order('created_at', { ascending: false });
     if (dealsData && dealsData.length > 0) {
       globalState.deals = dealsData.map((d: any) => ({
         id: d.id,
@@ -193,7 +215,7 @@ async function syncWithSupabase() {
     }
 
     // 4. Fetch Leads
-    const { data: leadsData } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    const { data: leadsData } = await client.from('leads').select('*').order('created_at', { ascending: false });
     if (leadsData && leadsData.length > 0) {
       globalState.leads = leadsData.map((l: any) => ({
         id: l.id,
@@ -214,7 +236,7 @@ async function syncWithSupabase() {
     }
 
     // 5. Fetch Products
-    const { data: prodsData } = await supabase.from('products').select('*');
+    const { data: prodsData } = await client.from('products').select('*');
     if (prodsData && prodsData.length > 0) {
       globalState.products = prodsData.map((p: any) => ({
         id: p.id,
@@ -230,7 +252,7 @@ async function syncWithSupabase() {
     }
 
     // 6. Fetch Users
-    const { data: usersData } = await supabase.from('users').select('*');
+    const { data: usersData } = await client.from('users').select('*');
     if (usersData && usersData.length > 0) {
       globalState.users = usersData.map((u: any) => ({
         id: u.id,
@@ -242,6 +264,18 @@ async function syncWithSupabase() {
         avatar: u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
         isActive: u.is_active ?? true,
       }));
+
+      if (globalState.currentUser) {
+        const matched = globalState.users.find(
+          (u) =>
+            u.id === globalState.currentUser?.id ||
+            u.email.trim().toLowerCase() === globalState.currentUser?.email.trim().toLowerCase()
+        );
+        if (matched) {
+          globalState.currentUser = { ...globalState.currentUser, ...matched };
+        }
+      }
+
       notify();
     }
 
@@ -267,18 +301,51 @@ export function useCRMStore() {
   }, []);
 
   // Auth & User Actions
+  const logout = async () => {
+    globalState.currentUser = null;
+    globalState.primaryUser = null;
+    notify();
+
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client.auth.signOut();
+      } catch (e) {
+        console.warn('Supabase signOut error:', e);
+      }
+    }
+  };
+
   const setCurrentUser = (user: User | null) => {
     globalState.currentUser = user;
+    globalState.primaryUser = null;
     notify();
+  };
+
+  const enterUserPanel = (targetUser: User) => {
+    if (!globalState.primaryUser && globalState.currentUser) {
+      globalState.primaryUser = globalState.currentUser;
+    }
+    globalState.currentUser = targetUser;
+    notify();
+  };
+
+  const exitUserPanel = () => {
+    if (globalState.primaryUser) {
+      globalState.currentUser = globalState.primaryUser;
+      globalState.primaryUser = null;
+      notify();
+    }
   };
 
   const switchUserRole = (role: User['role']) => {
     const targetUser = globalState.users.find((u) => u.role === role) || globalState.users[0];
     globalState.currentUser = targetUser;
+    globalState.primaryUser = null;
     notify();
   };
 
-  const addUser = async (newUser: Omit<User, 'id'>) => {
+  const addUser = async (newUser: Omit<User, 'id'>, initialPassword?: string) => {
     const tempId = `user-${Date.now()}`;
     const created: User = {
       ...newUser,
@@ -287,24 +354,43 @@ export function useCRMStore() {
     globalState.users.push(created);
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client && isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase.from('users').insert([
+        let authId: string | null = null;
+        if (initialPassword && initialPassword.trim().length >= 6) {
+          try {
+            const { data: authData } = await client.auth.signUp({
+              email: newUser.email,
+              password: initialPassword,
+            });
+            if (authData?.user) {
+              authId = authData.user.id;
+            }
+          } catch (signUpErr) {
+            console.warn('Supabase auth.signUp error during addUser:', signUpErr);
+          }
+        }
+
+        const { data, error } = await client.from('users').insert([
           {
             name: newUser.name,
             email: newUser.email,
             role: newUser.role,
-            department: newUser.department || 'واحد فروش',
+            department: newUser.department || 'واحد فروش و خدمات واته',
             phone: newUser.phone || null,
+            avatar: newUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
+            position: newUser.position || null,
             is_active: newUser.isActive ?? true,
+            ...(authId ? { auth_id: authId } : {}),
           }
         ]).select();
 
         if (error) {
           addNotification({
-            title: 'خطا در افزودن کاربر در Supabase',
-            message: `پیام خطا: ${error.message}`,
-            type: 'task',
+            title: 'ثبت کاربر در دیتابیس',
+            message: `پیام: ${error.message}`,
+            type: 'system',
           });
         } else if (data && data[0]) {
           globalState.users = globalState.users.map((u) =>
@@ -313,20 +399,55 @@ export function useCRMStore() {
           notify();
         }
       } catch (e: any) {
-        console.error('Supabase addUser error:', e);
+        console.error('addUser error:', e);
+      }
+    }
+  };
+
+  const updateUser = async (userId: string, updates: Partial<User>) => {
+    globalState.users = globalState.users.map((u) => {
+      if (u.id === userId || (globalState.currentUser && u.email === globalState.currentUser.email)) {
+        const updated = { ...u, ...updates };
+        if (
+          globalState.currentUser?.id === userId ||
+          globalState.currentUser?.email.trim().toLowerCase() === u.email.trim().toLowerCase()
+        ) {
+          globalState.currentUser = updated;
+        }
+        return updated;
+      }
+      return u;
+    });
+    notify();
+
+    const client = getSupabaseClient();
+    if (client && isSupabaseConfigured && !userId.startsWith('user-')) {
+      try {
+        const dbFields: any = {};
+        if (updates.name !== undefined) dbFields.name = updates.name;
+        if (updates.email !== undefined) dbFields.email = updates.email;
+        if (updates.role !== undefined) dbFields.role = updates.role;
+        if (updates.department !== undefined) dbFields.department = updates.department;
+        if (updates.phone !== undefined) dbFields.phone = updates.phone;
+        if (updates.avatar !== undefined) dbFields.avatar = updates.avatar;
+        if (updates.position !== undefined) dbFields.position = updates.position;
+        if (updates.isActive !== undefined) dbFields.is_active = updates.isActive;
+
+        await client.from('users').update(dbFields).eq('id', userId);
+      } catch (e) {
+        console.warn('Error updating user in DB:', e);
       }
     }
   };
 
   const updateUserRole = async (userId: string, role: User['role']) => {
-    globalState.users = globalState.users.map((u) => (u.id === userId ? { ...u, role } : u));
-    if (globalState.currentUser?.id === userId) {
-      globalState.currentUser = { ...globalState.currentUser, role };
-    }
-    notify();
+    await updateUser(userId, { role });
+  };
 
-    if (supabase && isSupabaseConfigured && !userId.startsWith('user-')) {
-      await supabase.from('users').update({ role }).eq('id', userId);
+  const toggleUserActiveStatus = async (userId: string) => {
+    const targetUser = globalState.users.find((u) => u.id === userId);
+    if (targetUser) {
+      await updateUser(userId, { isActive: !targetUser.isActive });
     }
   };
 
@@ -338,8 +459,9 @@ export function useCRMStore() {
     }
     notify();
 
-    if (supabase && isSupabaseConfigured && !userId.startsWith('user-')) {
-      await supabase.from('users').delete().eq('id', userId);
+    const client = getSupabaseClient();
+    if (client && isSupabaseConfigured && !userId.startsWith('user-')) {
+      await client.from('users').delete().eq('id', userId);
     }
   };
 
@@ -364,9 +486,10 @@ export function useCRMStore() {
     notify();
 
     // Direct insertion into Supabase table `customers`
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('customers').insert([
+        const { data, error } = await client.from('customers').insert([
           {
             company_name: custData.companyName,
             contact_name: custData.name,
@@ -415,7 +538,8 @@ export function useCRMStore() {
     globalState.customers = globalState.customers.map((c) => (c.id === id ? { ...c, ...updates } : c));
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('cust-')) {
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('cust-')) {
       const dbUpdates: any = {};
       if (updates.companyName) dbUpdates.company_name = updates.companyName;
       if (updates.name) dbUpdates.contact_name = updates.name;
@@ -426,7 +550,7 @@ export function useCRMStore() {
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.notes) dbUpdates.description = updates.notes;
 
-      await supabase.from('customers').update(dbUpdates).eq('id', id);
+      await client.from('customers').update(dbUpdates).eq('id', id);
     }
   };
 
@@ -437,8 +561,9 @@ export function useCRMStore() {
     globalState.serviceRequests = globalState.serviceRequests.filter((s) => s.customerId !== id);
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('cust-')) {
-      await supabase.from('customers').delete().eq('id', id);
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('cust-')) {
+      await client.from('customers').delete().eq('id', id);
     }
   };
 
@@ -464,9 +589,10 @@ export function useCRMStore() {
 
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('services').insert([
+        const { data, error } = await client.from('services').insert([
           {
             customer_id: srvData.customerId && !srvData.customerId.startsWith('cust-') ? srvData.customerId : null,
             device_name: srvData.deviceModel,
@@ -478,15 +604,32 @@ export function useCRMStore() {
 
         if (error) {
           console.error('Supabase Services Insert Error:', error);
+          addNotification({
+            title: 'خطا در ثبت درخواست در جدول services دیتابیس Supabase',
+            message: `علت خطا: ${error.message}`,
+            type: 'task',
+          });
         } else if (data && data[0]) {
           globalState.serviceRequests = globalState.serviceRequests.map((s) =>
             s.id === tempId ? { ...s, id: data[0].id } : s
           );
+          addNotification({
+            title: 'ثبت موفق در Supabase',
+            message: `درخواست ${reqNum} با موفقیت در جدول services دیتابیس آنلاین Supabase ذخیره شد.`,
+            type: 'task',
+            linkTab: 'services',
+          });
           notify();
         }
       } catch (e: any) {
         console.error('Supabase service insert error:', e);
       }
+    } else {
+      addNotification({
+        title: 'کلیدهای Supabase ست نشده‌اند',
+        message: 'برای ثبت آنلاین در Supabase، به تنظیمات > دیتابیس رفته و کلیدها را وارد کنید.',
+        type: 'task',
+      });
     }
   };
 
@@ -504,8 +647,9 @@ export function useCRMStore() {
     );
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('srv-')) {
-      await supabase.from('services').update({ service_status: status }).eq('id', id);
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('srv-')) {
+      await client.from('services').update({ service_status: status }).eq('id', id);
     }
   };
 
@@ -513,8 +657,9 @@ export function useCRMStore() {
     globalState.serviceRequests = globalState.serviceRequests.filter((s) => s.id !== id);
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('srv-')) {
-      await supabase.from('services').delete().eq('id', id);
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('srv-')) {
+      await client.from('services').delete().eq('id', id);
     }
   };
 
@@ -529,9 +674,10 @@ export function useCRMStore() {
     globalState.leads.unshift(created);
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('leads').insert([
+        const { data, error } = await client.from('leads').insert([
           {
             customer_name: leadData.customerName || leadData.companyName,
             phone: leadData.phone || null,
@@ -559,8 +705,9 @@ export function useCRMStore() {
     globalState.leads = globalState.leads.map((l) => (l.id === id ? { ...l, ...updates } : l));
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('lead-')) {
-      await supabase.from('leads').update({
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('lead-')) {
+      await client.from('leads').update({
         customer_name: updates.customerName || updates.companyName,
         phone: updates.phone,
         status: updates.stage,
@@ -623,8 +770,9 @@ export function useCRMStore() {
 
     notify();
 
-    if (supabase && isSupabaseConfigured) {
-      await supabase.from('deals').insert([
+    const client = getSupabaseClient();
+    if (client) {
+      await client.from('deals').insert([
         {
           customer_id: customer.id.startsWith('cust-') ? null : customer.id,
           title: lead.title,
@@ -634,7 +782,7 @@ export function useCRMStore() {
         }
       ]);
       if (!lead.id.startsWith('lead-')) {
-        await supabase.from('leads').delete().eq('id', lead.id);
+        await client.from('leads').delete().eq('id', lead.id);
       }
     }
   };
@@ -650,9 +798,10 @@ export function useCRMStore() {
     globalState.deals.unshift(created);
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('deals').insert([
+        const { data, error } = await client.from('deals').insert([
           {
             customer_id: dealData.customerId && !dealData.customerId.startsWith('cust-') ? dealData.customerId : null,
             title: dealData.title,
@@ -691,8 +840,9 @@ export function useCRMStore() {
     );
     notify();
 
-    if (supabase && isSupabaseConfigured && !dealId.startsWith('deal-')) {
-      await supabase.from('deals').update({ stage: newStage }).eq('id', dealId);
+    const client = getSupabaseClient();
+    if (client && !dealId.startsWith('deal-')) {
+      await client.from('deals').update({ stage: newStage }).eq('id', dealId);
     }
   };
 
@@ -700,8 +850,9 @@ export function useCRMStore() {
     globalState.deals = globalState.deals.filter((d) => d.id !== dealId);
     notify();
 
-    if (supabase && isSupabaseConfigured && !dealId.startsWith('deal-')) {
-      await supabase.from('deals').delete().eq('id', dealId);
+    const client = getSupabaseClient();
+    if (client && !dealId.startsWith('deal-')) {
+      await client.from('deals').delete().eq('id', dealId);
     }
   };
 
@@ -724,9 +875,10 @@ export function useCRMStore() {
 
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('tasks').insert([
+        const { data, error } = await client.from('tasks').insert([
           {
             title: taskData.title,
             due_date: taskData.dueDate,
@@ -760,8 +912,9 @@ export function useCRMStore() {
     });
     notify();
 
-    if (supabase && isSupabaseConfigured && !taskId.startsWith('task-')) {
-      await supabase.from('tasks').update({ status: nextStatus }).eq('id', taskId);
+    const client = getSupabaseClient();
+    if (client && !taskId.startsWith('task-')) {
+      await client.from('tasks').update({ status: nextStatus }).eq('id', taskId);
     }
   };
 
@@ -769,8 +922,9 @@ export function useCRMStore() {
     globalState.tasks = globalState.tasks.filter((t) => t.id !== taskId);
     notify();
 
-    if (supabase && isSupabaseConfigured && !taskId.startsWith('task-')) {
-      await supabase.from('tasks').delete().eq('id', taskId);
+    const client = getSupabaseClient();
+    if (client && !taskId.startsWith('task-')) {
+      await client.from('tasks').delete().eq('id', taskId);
     }
   };
 
@@ -792,8 +946,9 @@ export function useCRMStore() {
 
     notify();
 
-    if (supabase && isSupabaseConfigured && commData.customerId && !commData.customerId.startsWith('cust-')) {
-      await supabase.from('customer_contacts').insert([
+    const client = getSupabaseClient();
+    if (client && commData.customerId && !commData.customerId.startsWith('cust-')) {
+      await client.from('customer_contacts').insert([
         {
           customer_id: commData.customerId,
           type: commData.type,
@@ -813,9 +968,10 @@ export function useCRMStore() {
     globalState.products.unshift(created);
     notify();
 
-    if (supabase && isSupabaseConfigured) {
+    const client = getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await supabase.from('products').insert([
+        const { data, error } = await client.from('products').insert([
           {
             name: prodData.name,
             model: prodData.code,
@@ -842,8 +998,9 @@ export function useCRMStore() {
     globalState.products = globalState.products.filter((p) => p.id !== id);
     notify();
 
-    if (supabase && isSupabaseConfigured && !id.startsWith('prod-')) {
-      await supabase.from('products').delete().eq('id', id);
+    const client = getSupabaseClient();
+    if (client && !id.startsWith('prod-')) {
+      await client.from('products').delete().eq('id', id);
     }
   };
 
@@ -863,8 +1020,9 @@ export function useCRMStore() {
 
     notify();
 
-    if (supabase && isSupabaseConfigured && fileData.customerId && !fileData.customerId.startsWith('cust-')) {
-      await supabase.from('files').insert([
+    const client = getSupabaseClient();
+    if (client && fileData.customerId && !fileData.customerId.startsWith('cust-')) {
+      await client.from('files').insert([
         {
           customer_id: fileData.customerId,
           file_name: fileData.fileName,
@@ -881,8 +1039,9 @@ export function useCRMStore() {
     );
     notify();
 
-    if (supabase && isSupabaseConfigured && !fileId.startsWith('file-')) {
-      await supabase.from('files').delete().eq('id', fileId);
+    const client = getSupabaseClient();
+    if (client && !fileId.startsWith('file-')) {
+      await client.from('files').delete().eq('id', fileId);
     }
   };
 
@@ -921,6 +1080,7 @@ export function useCRMStore() {
     hasFetchedSupabase = false;
     globalState = {
       currentUser: initialUsers[0],
+      primaryUser: null,
       users: initialUsers,
       customers: initialCustomers,
       leads: initialLeads,
@@ -939,36 +1099,89 @@ export function useCRMStore() {
   };
 
   // Role Based Filter Helper
-  const isManager = state.currentUser?.role === 'admin';
+  const currentRole = state.currentUser?.role || 'sales';
   const currentUserId = state.currentUser?.id;
 
-  const accessibleCustomers = isManager
+  const isAdmin = currentRole === 'admin';
+  const isSalesManager = currentRole === 'sales_manager';
+  const isSales = currentRole === 'sales';
+  const isService = currentRole === 'service';
+
+  // Customers access
+  const accessibleCustomers = (isAdmin || isSalesManager)
     ? state.customers
+    : isService
+    ? state.customers.filter((c) =>
+        state.serviceRequests.some((s) => s.customerId === c.id)
+      )
     : state.customers.filter((c) => c.assignedToUserId === currentUserId || !c.assignedToUserId);
 
-  const accessibleLeads = isManager
+  // Leads access
+  const accessibleLeads = (isAdmin || isSalesManager)
     ? state.leads
-    : state.leads.filter((l) => l.assignedToUserId === currentUserId || !l.assignedToUserId);
+    : isSales
+    ? state.leads.filter((l) => l.assignedToUserId === currentUserId || !l.assignedToUserId)
+    : []; // Service role has no access to leads
 
-  const accessibleDeals = isManager
+  // Deals access
+  const accessibleDeals = (isAdmin || isSalesManager)
     ? state.deals
-    : state.deals.filter((d) => d.assignedToUserId === currentUserId || !d.assignedToUserId);
+    : isSales
+    ? state.deals.filter((d) => d.assignedToUserId === currentUserId || !d.assignedToUserId)
+    : []; // Service role has no access to financial deals
 
-  const accessibleTasks = isManager
+  // Tasks access
+  const accessibleTasks = (isAdmin || isSalesManager)
     ? state.tasks
-    : state.tasks.filter((t) => t.assignedToUserId === currentUserId);
+    : isService
+    ? state.tasks.filter((t) => t.assignedToUserId === currentUserId || t.type === 'other')
+    : state.tasks.filter((t) => t.assignedToUserId === currentUserId || !t.assignedToUserId);
+
+  // Services access
+  const accessibleServices = (isAdmin || isService)
+    ? state.serviceRequests
+    : state.serviceRequests.filter((s) => s.assignedTechnicianId === currentUserId || isSalesManager);
+
+  const actualUser = state.primaryUser || state.currentUser;
+  const actualIsAdmin = actualUser?.role === 'admin';
+  const actualIsSalesManager = actualUser?.role === 'sales_manager';
+
+  const canSwitchToPanel = (targetUser: User) => {
+    if (!targetUser) return false;
+    if (targetUser.id === state.currentUser?.id) return false;
+    if (actualIsAdmin) return true; // Admin can switch to ANY panel
+    if (actualIsSalesManager) {
+      // Sales Manager can ONLY switch to sales and service staff, NOT admin or other sales_managers
+      return targetUser.role === 'sales' || targetUser.role === 'service';
+    }
+    return false;
+  };
 
   return {
     state,
     currentUser: state.currentUser,
+    primaryUser: state.primaryUser,
+    actualUser,
+    actualIsAdmin,
+    actualIsSalesManager,
+    canSwitchToPanel,
+    enterUserPanel,
+    exitUserPanel,
     users: state.users,
-    isManager,
+    isManager: isAdmin || isSalesManager,
+    isAdmin,
+    isSalesManager,
+    isSales,
+    isService,
     isSupabaseConnected: state.isSupabaseConnected,
     supabaseError: state.supabaseError,
     setCurrentUser,
+    logout,
     switchUserRole,
     addUser,
+    updateUser,
     updateUserRole,
+    toggleUserActiveStatus,
     deleteUser,
     // Customers
     accessibleCustomers,
@@ -977,7 +1190,8 @@ export function useCRMStore() {
     updateCustomer,
     deleteCustomer,
     // Service Requests
-    serviceRequests: state.serviceRequests,
+    serviceRequests: accessibleServices,
+    allServiceRequests: state.serviceRequests,
     addServiceRequest,
     updateServiceRequestStatus,
     deleteServiceRequest,
