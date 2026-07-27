@@ -163,6 +163,11 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- آپدیت و اصلاح محدودیت نقش‌های جدول کاربران (جهت پذیرش sales_manager در دیتابیس‌های موجود)
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE public.users ADD CONSTRAINT users_role_check 
+  CHECK (role IN ('admin', 'sales_manager', 'sales', 'service'));
+
 -- 2- جدول مشتریان (customers)
 CREATE TABLE IF NOT EXISTS public.customers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -254,10 +259,12 @@ CREATE TABLE IF NOT EXISTS public.files (
 );
 
 -- ================================================================
--- تنظیم باکت ذخیره‌سازی فایل (Supabase Storage Bucket)
+-- تنظیم باکت‌های ذخیره‌سازی فایل و آواتار (Supabase Storage Buckets)
 -- ================================================================
 INSERT INTO storage.buckets (id, name, public) 
-VALUES ('customer-files', 'customer-files', true)
+VALUES 
+  ('customer-files', 'customer-files', true),
+  ('profile-images', 'profile-images', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- ================================================================
@@ -348,3 +355,38 @@ VALUES (
   'مهندس کامران حسینی'
 ) ON CONFLICT DO NOTHING;
 `;
+
+export async function uploadProfileAvatar(userId: string, file: File): Promise<string> {
+  const client = getSupabaseClient();
+  if (client && isSupabaseConfigured) {
+    try {
+      const fileExt = file.name.split('.').pop() || 'jpg';
+      const filePath = `profiles/${userId}/avatar_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await client.storage
+        .from('profile-images')
+        .upload(filePath, file, { upsert: true });
+
+      if (!uploadError) {
+        const { data: publicUrlData } = client.storage
+          .from('profile-images')
+          .getPublicUrl(filePath);
+        if (publicUrlData?.publicUrl) {
+          return publicUrlData.publicUrl;
+        }
+      } else {
+        console.warn('Supabase storage upload error:', uploadError.message);
+      }
+    } catch (err) {
+      console.warn('Storage upload exception:', err);
+    }
+  }
+
+  // Fallback to FileReader DataURL
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(typeof reader.result === 'string' ? reader.result : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250');
+    };
+    reader.readAsDataURL(file);
+  });
+}

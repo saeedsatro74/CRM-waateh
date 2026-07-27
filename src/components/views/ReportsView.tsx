@@ -53,9 +53,9 @@ export const ReportsView: React.FC = () => {
   });
 
   const activeVsLostData = [
-    { name: 'مشتریان فعال و VIP', value: activeCustomersCount || 6, color: '#10b981' },
-    { name: 'مشتریان در حال مذاکره', value: allCustomers.filter((c) => c.status === 'negotiating').length || 3, color: '#8b5cf6' },
-    { name: 'مشتریان از دست رفته', value: lostCustomersCount || 1, color: '#f43f5e' },
+    { name: 'مشتریان فعال و VIP', value: activeCustomersCount, color: '#10b981' },
+    { name: 'مشتریان در حال مذاکره', value: allCustomers.filter((c) => c.status === 'negotiating').length, color: '#8b5cf6' },
+    { name: 'مشتریان از دست رفته', value: lostCustomersCount, color: '#f43f5e' },
   ];
 
   const handlePrint = () => {

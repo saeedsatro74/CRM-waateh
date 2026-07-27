@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCRMStore } from '../../lib/store';
 import { getAvatarSrc, handleImageError } from '../../lib/utils';
+import { uploadProfileAvatar } from '../../lib/supabase';
 import { UserRole, User } from '../../types';
 import {
   UserCog,
@@ -84,20 +85,16 @@ export const UsersView: React.FC = () => {
     );
   }
 
-  const handleAvatarFileUpload = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+  const handleAvatarFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') {
-          if (isEdit) {
-            setEditAvatar(reader.result);
-          } else {
-            setAddAvatar(reader.result);
-          }
-        }
-      };
-      reader.readAsDataURL(file);
+      const targetId = isEdit && editingUser ? editingUser.id : `new-user-${Date.now()}`;
+      const avatarUrl = await uploadProfileAvatar(targetId, file);
+      if (isEdit) {
+        setEditAvatar(avatarUrl);
+      } else {
+        setAddAvatar(avatarUrl);
+      }
     }
   };
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useCRMStore } from '../../lib/store';
 import { getAvatarSrc, handleImageError } from '../../lib/utils';
-import { getSupabaseClient, isSupabaseConfigured } from '../../lib/supabase';
+import { getSupabaseClient, isSupabaseConfigured, uploadProfileAvatar } from '../../lib/supabase';
 import {
   User as UserIcon,
   Mail,
@@ -16,6 +16,7 @@ import {
   Briefcase,
   Upload,
   AlertCircle,
+  Camera,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserRole } from '../../types';
@@ -28,6 +29,7 @@ export const ProfileView: React.FC = () => {
   const [department, setDepartment] = useState(currentUser?.department || '');
   const [position, setPosition] = useState(currentUser?.position || 'کارشناس تهویه صنعتی');
   const [avatar, setAvatar] = useState(currentUser?.avatar || '');
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -59,6 +61,26 @@ export const ProfileView: React.FC = () => {
 
   const roleInfo = getRoleBadge(currentUser.role);
   const RoleIcon = roleInfo.icon;
+
+  const handleAvatarFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentUser) return;
+
+    setIsUploadingAvatar(true);
+    setProfileSuccessMsg(null);
+
+    try {
+      const newAvatarUrl = await uploadProfileAvatar(currentUser.id, file);
+      setAvatar(newAvatarUrl);
+      await updateUser(currentUser.id, { avatar: newAvatarUrl });
+      setProfileSuccessMsg('عکس پروفایل با موفقیت در ذخیره‌ساز ثبت و به‌روزرسانی شد.');
+      setTimeout(() => setProfileSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error('Avatar update failed:', err);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -143,12 +165,30 @@ export const ProfileView: React.FC = () => {
         {/* Left Column: Profile Card Overview & Avatar */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-[#d0dbe5] shadow-xs text-center space-y-4 relative overflow-hidden">
-            <div className="relative inline-block mx-auto">
+            <div className="relative inline-block mx-auto group">
               <img
                 src={getAvatarSrc(avatar || currentUser.avatar)}
                 onError={handleImageError}
                 alt={currentUser.name}
                 className="w-28 h-28 rounded-3xl object-cover ring-4 ring-slate-100 shadow-md mx-auto"
+              />
+              <label
+                htmlFor="profile-avatar-input"
+                className="absolute bottom-0 right-0 bg-teal-700 hover:bg-teal-800 text-white p-2 rounded-2xl cursor-pointer shadow-lg transition-all border-2 border-white flex items-center justify-center group-hover:scale-105 active:scale-95"
+                title="تغییر عکس پروفایل"
+              >
+                {isUploadingAvatar ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Camera className="w-4 h-4" />
+                )}
+              </label>
+              <input
+                id="profile-avatar-input"
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarFileChange}
+                className="hidden"
               />
             </div>
 

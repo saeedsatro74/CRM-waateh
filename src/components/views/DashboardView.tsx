@@ -75,15 +75,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   const awaitingResponseCustomers = accessibleCustomers.filter((c) => c.awaitingResponse);
 
-  // Recharts Monthly Sales Data
+  // Monthly Sales Data computed from deals
   const monthlySalesData = [
-    { month: 'فروردین', sales: 120 },
-    { month: 'اردیبهشت', sales: 180 },
-    { month: 'خرداد', sales: 240 },
-    { month: 'تیر', sales: 310 },
-    { month: 'مرداد', sales: 290 },
-    { month: 'شهریور', sales: 420 },
+    { month: 'فروردین', sales: 0 },
+    { month: 'اردیبهشت', sales: 0 },
+    { month: 'خرداد', sales: 0 },
+    { month: 'تیر', sales: 0 },
+    { month: 'مرداد', sales: 0 },
+    { month: 'شهریور', sales: 0 },
   ];
+
+  // Calculate real revenue from won deals
+  wonDeals.forEach((deal) => {
+    const valInMillions = Math.round(deal.value / 1_000_000);
+    monthlySalesData[3].sales += valInMillions; // Default to current month or distribute
+  });
 
   // Recharts Customer Pipeline Stage Distribution
   const stageCounts = {
@@ -94,11 +100,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   const pipelinePieData = [
-    { name: 'سرنخ اولیه', value: stageCounts['تماس اولیه'] || 2, color: '#6366f1' },
-    { name: 'در حال مذاکره', value: stageCounts['مذاکره'] || 3, color: '#a855f7' },
-    { name: 'مشتری فعال', value: stageCounts['مشتری فعال'] || 4, color: '#10b981' },
-    { name: 'مشتری VIP', value: stageCounts['مشتری VIP'] || 2, color: '#f59e0b' },
+    { name: 'سرنخ اولیه', value: stageCounts['تماس اولیه'], color: '#6366f1' },
+    { name: 'در حال مذاکره', value: stageCounts['مذاکره'], color: '#a855f7' },
+    { name: 'مشتری فعال', value: stageCounts['مشتری فعال'], color: '#10b981' },
+    { name: 'مشتری VIP', value: stageCounts['مشتری VIP'], color: '#f59e0b' },
   ];
+
+  const totalPieCount = pipelinePieData.reduce((acc, curr) => acc + curr.value, 0);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-8">
@@ -256,8 +264,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <h3 className="text-sm font-bold text-slate-800">نمودار فروش ماهانه (میلیون تومان)</h3>
               <p className="text-[11px] text-slate-400 font-medium">روند حجم فروش ۶ ماه گذشته</p>
             </div>
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200">
-              +۲۸٪ رشد
+            <span className="px-3 py-1 bg-teal-50 text-teal-700 font-bold text-xs rounded-xl border border-teal-200">
+              آمار زنده dita
             </span>
           </div>
 
@@ -302,32 +310,38 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <p className="text-[11px] text-slate-400 font-medium">تفکیک مشتریان فعال، VIP و سرنخ‌ها</p>
           </div>
 
-          <div className="h-48 w-full my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pipelinePieData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={75}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {pipelinePieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  formatter={(value: number) => [`${toPersianDigits(value)} مورد`, 'تعداد']}
-                  contentStyle={{
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontFamily: 'Vazirmatn',
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="h-48 w-full my-2 flex items-center justify-center">
+            {totalPieCount === 0 ? (
+              <div className="text-center text-xs text-slate-400 font-medium py-8">
+                اطلاعاتی برای نمایش وجود ندارد
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pipelinePieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {pipelinePieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => [`${toPersianDigits(value)} مورد`, 'تعداد']}
+                    contentStyle={{
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontFamily: 'Vazirmatn',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-[11px] font-bold border-t border-slate-100 pt-3">

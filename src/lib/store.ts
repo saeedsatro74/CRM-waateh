@@ -29,7 +29,7 @@ import {
 } from './initialData';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
-const STORAGE_KEY = 'waateh_crm_app_data_v3';
+const STORAGE_KEY = 'waateh_crm_app_v4_prod';
 
 interface CRMDataState {
   currentUser: User | null;
@@ -76,15 +76,15 @@ function loadInitialState(): CRMDataState {
         currentUser: loadedCurrentUser,
         primaryUser: null,
         users: loadedUsers,
-        customers: parsed.customers?.length ? parsed.customers : initialCustomers,
-        leads: parsed.leads?.length ? parsed.leads : initialLeads,
-        deals: parsed.deals?.length ? parsed.deals : initialDeals,
-        tasks: parsed.tasks?.length ? parsed.tasks : initialTasks,
-        communications: parsed.communications?.length ? parsed.communications : initialCommunications,
-        products: parsed.products?.length ? parsed.products : initialProducts,
-        customerFiles: parsed.customerFiles?.length ? parsed.customerFiles : initialCustomerFiles,
-        serviceRequests: parsed.serviceRequests?.length ? parsed.serviceRequests : initialServiceRequests,
-        notifications: parsed.notifications?.length ? parsed.notifications : initialNotifications,
+        customers: parsed.customers || [],
+        leads: parsed.leads || [],
+        deals: parsed.deals || [],
+        tasks: parsed.tasks || [],
+        communications: parsed.communications || [],
+        products: parsed.products || [],
+        customerFiles: parsed.customerFiles || [],
+        serviceRequests: parsed.serviceRequests || [],
+        notifications: parsed.notifications || [],
         settings: parsed.settings || initialCompanySettings,
         isSupabaseConnected: false,
         supabaseError: null,
@@ -135,8 +135,8 @@ async function syncWithSupabase() {
       console.warn('Supabase Customers fetch error:', custErr.message);
       globalState.supabaseError = `خطا در دریافت جدول مشتریان: ${custErr.message}. لطفاً اسکریپت SQL را در Supabase اجرا کنید.`;
       notify();
-    } else if (custData && custData.length > 0) {
-      globalState.customers = custData.map((c: any) => ({
+    } else {
+      globalState.customers = (custData || []).map((c: any) => ({
         id: c.id,
         companyName: c.company_name || 'بدون نام شرکت',
         name: c.contact_name || 'بدون نام رابط',
@@ -145,19 +145,15 @@ async function syncWithSupabase() {
         address: c.address || '',
         customerType: c.customer_type || 'company',
         status: c.status || 'lead',
-        tags: ['Supabase DB'],
+        tags: [],
         assignedToUserId: c.assigned_to || '',
         lastContactDate: c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         createdAt: c.created_at ? c.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         notes: c.description || '',
         budget: 0,
-        source: 'Supabase',
+        source: 'مستقیم',
         fileCount: 0,
       }));
-      globalState.isSupabaseConnected = true;
-      globalState.supabaseError = null;
-      notify();
-    } else {
       globalState.isSupabaseConnected = true;
       globalState.supabaseError = null;
       notify();
@@ -165,7 +161,7 @@ async function syncWithSupabase() {
 
     // 2. Fetch Services
     const { data: srvData } = await client.from('services').select('*').order('created_at', { ascending: false });
-    if (srvData && srvData.length > 0) {
+    if (srvData) {
       globalState.serviceRequests = srvData.map((s: any) => {
         let statusValue: ServiceStatus = 'registered';
         if (s.service_status === 'checking') statusValue = 'diagnosing';
@@ -175,18 +171,21 @@ async function syncWithSupabase() {
           statusValue = s.service_status as ServiceStatus;
         }
 
+        const relatedCust = globalState.customers.find((c) => c.id === s.customer_id);
+
         return {
           id: s.id,
           requestNumber: `W-SRV-${s.id.slice(0, 5)}`,
           customerId: s.customer_id || '',
-          customerName: 'مشتری تهویه واته',
-          companyName: 'شرکت ثبت شده در دیتابیس',
+          customerName: relatedCust ? relatedCust.name : 'مشتری تهویه واته',
+          companyName: relatedCust ? relatedCust.companyName : 'شرکت ثبت شده',
           deviceModel: s.device_name || 'تجهیزات تهویه',
-          serialNumber: 'SN-SUPABASE',
+          serialNumber: 'SN-WAATEH',
           serviceType: 'breakdown',
           issueDescription: s.problem_description || 'نیاز به بررسی تکنسین',
           priority: 'medium',
           status: statusValue,
+          assignedTechnicianId: s.assigned_to || '',
           assignedTechnicianName: s.technician || 'کارشناس فنی واته',
           createdAt: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
           updatedAt: s.created_at ? s.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
@@ -197,26 +196,29 @@ async function syncWithSupabase() {
 
     // 3. Fetch Deals
     const { data: dealsData } = await client.from('deals').select('*').order('created_at', { ascending: false });
-    if (dealsData && dealsData.length > 0) {
-      globalState.deals = dealsData.map((d: any) => ({
-        id: d.id,
-        title: d.title || 'فرصت فروش واته',
-        customerId: d.customer_id || '',
-        customerName: 'مشتری فروش',
-        companyName: 'شرکت خریدار',
-        value: Number(d.value) || 0,
-        stage: d.stage || 'negotiation',
-        probability: 70,
-        expectedCloseDate: new Date().toISOString().split('T')[0],
-        assignedToUserId: d.assigned_to || '',
-        createdAt: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
-      }));
+    if (dealsData) {
+      globalState.deals = dealsData.map((d: any) => {
+        const relatedCust = globalState.customers.find((c) => c.id === d.customer_id);
+        return {
+          id: d.id,
+          title: d.title || 'فرصت فروش واته',
+          customerId: d.customer_id || '',
+          customerName: relatedCust ? relatedCust.name : 'مشتری خریدار',
+          companyName: relatedCust ? relatedCust.companyName : 'شرکت خریدار',
+          value: Number(d.value) || 0,
+          stage: d.stage || 'negotiation',
+          probability: d.stage === 'won' ? 100 : 70,
+          expectedCloseDate: new Date().toISOString().split('T')[0],
+          assignedToUserId: d.assigned_to || '',
+          createdAt: d.created_at ? d.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        };
+      });
       notify();
     }
 
     // 4. Fetch Leads
     const { data: leadsData } = await client.from('leads').select('*').order('created_at', { ascending: false });
-    if (leadsData && leadsData.length > 0) {
+    if (leadsData) {
       globalState.leads = leadsData.map((l: any) => ({
         id: l.id,
         title: l.customer_name || 'سرنخ جدید',
@@ -224,20 +226,42 @@ async function syncWithSupabase() {
         companyName: l.customer_name || '',
         phone: l.phone || '',
         email: '',
-        source: l.source || 'دیجیتال مارکتینگ',
+        source: l.source || 'استعلام مستقیم',
         stage: l.status === 'converted' ? 'won' : 'initial_contact',
         priority: 'medium',
         dealValue: 0,
-        assignedToUserId: '',
+        assignedToUserId: l.assigned_to || '',
         createdAt: l.created_at ? l.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
         notes: l.notes || '',
       }));
       notify();
     }
 
-    // 5. Fetch Products
+    // 5. Fetch Tasks
+    const { data: tasksData } = await client.from('tasks').select('*').order('created_at', { ascending: false });
+    if (tasksData) {
+      globalState.tasks = tasksData.map((t: any) => {
+        const relatedCust = globalState.customers.find((c) => c.id === t.customer_id);
+        return {
+          id: t.id,
+          title: t.title || 'پیگیری',
+          description: t.description || '',
+          customerId: t.customer_id || '',
+          customerName: relatedCust ? relatedCust.companyName : '',
+          assignedToUserId: t.assigned_to || '',
+          dueDate: t.due_date ? t.due_date.split('T')[0] : new Date().toISOString().split('T')[0],
+          priority: t.priority || 'medium',
+          status: t.status || 'pending',
+          type: 'followup',
+          createdAt: t.created_at ? t.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        };
+      });
+      notify();
+    }
+
+    // 6. Fetch Products
     const { data: prodsData } = await client.from('products').select('*');
-    if (prodsData && prodsData.length > 0) {
+    if (prodsData) {
       globalState.products = prodsData.map((p: any) => ({
         id: p.id,
         name: p.name || 'محصول واته',
@@ -251,7 +275,7 @@ async function syncWithSupabase() {
       notify();
     }
 
-    // 6. Fetch Users
+    // 7. Fetch Users
     const { data: usersData } = await client.from('users').select('*');
     if (usersData && usersData.length > 0) {
       globalState.users = usersData.map((u: any) => ({
@@ -387,9 +411,13 @@ export function useCRMStore() {
         ]).select();
 
         if (error) {
+          let errorMsg = `خطای ثبت: ${error.message}`;
+          if (error.message?.includes('users_role_check') || error.code === '23514') {
+            errorMsg = 'محدودیت نقش اجازه ثبت این عنوان شغلی را نداد!';
+          }
           addNotification({
-            title: 'ثبت کاربر در دیتابیس',
-            message: `پیام: ${error.message}`,
+            title: 'خطای ثبت کاربر',
+            message: errorMsg,
             type: 'system',
           });
         } else if (data && data[0]) {
@@ -433,7 +461,19 @@ export function useCRMStore() {
         if (updates.position !== undefined) dbFields.position = updates.position;
         if (updates.isActive !== undefined) dbFields.is_active = updates.isActive;
 
-        await client.from('users').update(dbFields).eq('id', userId);
+        const { error } = await client.from('users').update(dbFields).eq('id', userId);
+        if (error) {
+          console.warn('Error updating user in DB:', error);
+          let errorMsg = `خطای سیستم: ${error.message}`;
+          if (error.message?.includes('users_role_check') || error.code === '23514') {
+            errorMsg = 'محدودیت نقش اجازه ثبت این عنوان شغلی را نداد!';
+          }
+          addNotification({
+            title: 'خطای به‌روزرسانی کاربر',
+            message: errorMsg,
+            type: 'system',
+          });
+        }
       } catch (e) {
         console.warn('Error updating user in DB:', e);
       }
@@ -499,14 +539,15 @@ export function useCRMStore() {
             customer_type: custData.customerType || 'company',
             status: custData.status || 'lead',
             description: custData.notes || null,
+            assigned_to: custData.assignedToUserId || globalState.currentUser?.id || null,
           }
         ]).select();
 
         if (error) {
           console.error('Supabase Customers Insert Error:', error);
           addNotification({
-            title: 'خطا در ثبت جدول customers دیتابیس Supabase',
-            message: `خطای دیتابیس: ${error.message}. لطفاً مطمئن شوید کد SQL در SQL Editor پورتال Supabase اجرا شده است.`,
+            title: 'خطا در ذخیره‌سازی مشتری',
+            message: `خطای سیستم: ${error.message}`,
             type: 'task',
           });
         } else if (data && data[0]) {
@@ -514,23 +555,11 @@ export function useCRMStore() {
           globalState.customers = globalState.customers.map((c) =>
             c.id === tempId ? { ...c, id: supabaseCustomer.id } : c
           );
-          addNotification({
-            title: 'ذخیره‌سازی در Supabase',
-            message: `مشتری «${created.companyName}» با موفقیت در جدول customers دیتابیس Supabase ثبت شد.`,
-            type: 'customer',
-            linkTab: 'customers',
-          });
           notify();
         }
       } catch (err: any) {
         console.error('Exception adding customer to Supabase:', err);
       }
-    } else {
-      addNotification({
-        title: 'تنظیمات Supabase ناقص است',
-        message: 'کلیدهای اتصال Supabase ست نشده‌اند. مشتری فعلاً در حافظه محلی ذخیره شد.',
-        type: 'task',
-      });
     }
   };
 
@@ -549,6 +578,7 @@ export function useCRMStore() {
       if (updates.customerType) dbUpdates.customer_type = updates.customerType;
       if (updates.status) dbUpdates.status = updates.status;
       if (updates.notes) dbUpdates.description = updates.notes;
+      if (updates.assignedToUserId) dbUpdates.assigned_to = updates.assignedToUserId;
 
       await client.from('customers').update(dbUpdates).eq('id', id);
     }
@@ -597,15 +627,16 @@ export function useCRMStore() {
             customer_id: srvData.customerId && !srvData.customerId.startsWith('cust-') ? srvData.customerId : null,
             device_name: srvData.deviceModel,
             problem_description: srvData.issueDescription,
-            service_status: srvData.status || 'new',
+            service_status: srvData.status || 'registered',
             technician: srvData.assignedTechnicianName || 'کارشناس فنی واته',
+            assigned_to: srvData.assignedTechnicianId || globalState.currentUser?.id || null,
           }
         ]).select();
 
         if (error) {
           console.error('Supabase Services Insert Error:', error);
           addNotification({
-            title: 'خطا در ثبت درخواست در جدول services دیتابیس Supabase',
+            title: 'خطا در ثبت درخواست خدمات',
             message: `علت خطا: ${error.message}`,
             type: 'task',
           });
@@ -613,23 +644,11 @@ export function useCRMStore() {
           globalState.serviceRequests = globalState.serviceRequests.map((s) =>
             s.id === tempId ? { ...s, id: data[0].id } : s
           );
-          addNotification({
-            title: 'ثبت موفق در Supabase',
-            message: `درخواست ${reqNum} با موفقیت در جدول services دیتابیس آنلاین Supabase ذخیره شد.`,
-            type: 'task',
-            linkTab: 'services',
-          });
           notify();
         }
       } catch (e: any) {
         console.error('Supabase service insert error:', e);
       }
-    } else {
-      addNotification({
-        title: 'کلیدهای Supabase ست نشده‌اند',
-        message: 'برای ثبت آنلاین در Supabase، به تنظیمات > دیتابیس رفته و کلیدها را وارد کنید.',
-        type: 'task',
-      });
     }
   };
 
