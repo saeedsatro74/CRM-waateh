@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCRMStore } from './lib/store';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
@@ -22,16 +22,98 @@ import { ReportsView } from './components/views/ReportsView';
 import { UsersView } from './components/views/UsersView';
 import { SettingsView } from './components/views/SettingsView';
 import { ProfileView } from './components/views/ProfileView';
+import { ProformaInvoicesView } from './components/views/ProformaInvoicesView';
 import { NotFoundView } from './components/views/NotFoundView';
 
 import { CustomerStatus, CustomerType } from './types';
-import { X, UserPlus, Eye, ShieldCheck, LogOut } from 'lucide-react';
+import { X, UserPlus, Eye, ShieldCheck, LogOut, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export default function App() {
-  const { currentUser, primaryUser, exitUserPanel, addCustomer, logout } = useCRMStore();
+const getTabFromPath = (path: string): string => {
+  const clean = path.replace(/\/$/, '').toLowerCase();
+  switch (clean) {
+    case '/dashboard':
+      return 'dashboard';
+    case '/customers':
+      return 'customers';
+    case '/customers/new':
+      return 'customers_new';
+    case '/deals':
+    case '/sales':
+      return 'deals';
+    case '/leads':
+      return 'leads';
+    case '/proforma_invoices':
+    case '/quotes':
+      return 'proforma_invoices';
+    case '/purchase_quotes':
+      return 'purchase_quotes';
+    case '/services':
+      return 'services';
+    case '/products':
+      return 'products';
+    case '/tasks':
+      return 'tasks';
+    case '/communications':
+      return 'communications';
+    case '/reports':
+      return 'reports';
+    case '/users':
+      return 'users';
+    case '/settings':
+      return 'settings';
+    case '/profile':
+      return 'profile';
+    default:
+      return 'dashboard';
+  }
+};
 
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+const getPathFromTab = (tab: string): string => {
+  switch (tab) {
+    case 'dashboard':
+      return '/dashboard';
+    case 'customers':
+      return '/customers';
+    case 'customers_new':
+      return '/customers/new';
+    case 'deals':
+    case 'sales':
+      return '/deals';
+    case 'leads':
+      return '/leads';
+    case 'proforma_invoices':
+    case 'quotes':
+      return '/proforma_invoices';
+    case 'purchase_quotes':
+      return '/purchase_quotes';
+    case 'services':
+      return '/services';
+    case 'products':
+      return '/products';
+    case 'tasks':
+      return '/tasks';
+    case 'communications':
+      return '/communications';
+    case 'reports':
+      return '/reports';
+    case 'users':
+      return '/users';
+    case 'settings':
+      return '/settings';
+    case 'profile':
+      return '/profile';
+    default:
+      return '/dashboard';
+  }
+};
+
+export default function App() {
+  const { currentUser, primaryUser, isAuthChecked, exitUserPanel, addCustomer, logout } = useCRMStore();
+
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return getTabFromPath(window.location.pathname);
+  });
 
   // Modals state
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -55,8 +137,81 @@ export default function App() {
   const [notes, setNotes] = useState('');
   const [tagsInput, setTagsInput] = useState('مشتری جدید، تجهیزات صنعتی');
 
+  // Handle Tab / Path change
+  const handleTabChange = (newTab: string) => {
+    setActiveTab(newTab);
+    if (currentUser) {
+      const targetPath = getPathFromTab(newTab);
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState(null, '', targetPath);
+      }
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    window.history.pushState(null, '', '/login');
+    setActiveTab('dashboard');
+  };
+
+  // Synchronize browser history and path
+  useEffect(() => {
+    const handlePopState = () => {
+      const currentPath = window.location.pathname;
+      if (!currentUser) {
+        if (currentPath !== '/login') {
+          window.history.replaceState(null, '', '/login');
+        }
+      } else {
+        if (currentPath === '/' || currentPath === '/login') {
+          window.history.replaceState(null, '', '/dashboard');
+          setActiveTab('dashboard');
+        } else {
+          setActiveTab(getTabFromPath(currentPath));
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [currentUser]);
+
+  // Handle initial route redirection and protection
+  useEffect(() => {
+    if (isAuthChecked) {
+      if (!currentUser) {
+        if (window.location.pathname !== '/login') {
+          window.history.replaceState(null, '', '/login');
+        }
+      } else {
+        if (window.location.pathname === '/' || window.location.pathname === '/login') {
+          window.history.replaceState(null, '', '/dashboard');
+          setActiveTab('dashboard');
+        }
+      }
+    }
+  }, [isAuthChecked, currentUser]);
+
+  if (!isAuthChecked) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 text-white dir-rtl">
+        <Loader2 className="w-10 h-10 text-teal-400 animate-spin mb-3" />
+        <p className="text-xs sm:text-sm font-bold text-slate-200">
+          در حال بررسی نشست کاربری و امنیت سیستم...
+        </p>
+      </div>
+    );
+  }
+
   if (!currentUser) {
-    return <LoginPage onLoginSuccess={() => {}} />;
+    return (
+      <LoginPage
+        onLoginSuccess={() => {
+          window.history.pushState(null, '', '/dashboard');
+          setActiveTab('dashboard');
+        }}
+      />
+    );
   }
 
   const handleAddCustomerSubmit = (e: React.FormEvent) => {
@@ -104,9 +259,9 @@ export default function App() {
       case 'admin':
         return true;
       case 'sales_manager':
-        return ['dashboard', 'customers', 'customers_new', 'sales', 'deals', 'leads', 'products', 'tasks', 'reports', 'profile'].includes(tab);
+        return ['dashboard', 'customers', 'customers_new', 'sales', 'deals', 'leads', 'quotes', 'purchase_quotes', 'proforma_invoices', 'products', 'tasks', 'reports', 'profile'].includes(tab);
       case 'sales':
-        return ['customers', 'customers_new', 'sales', 'deals', 'leads', 'tasks', 'profile'].includes(tab);
+        return ['customers', 'customers_new', 'sales', 'deals', 'leads', 'quotes', 'purchase_quotes', 'proforma_invoices', 'tasks', 'profile'].includes(tab);
       case 'service':
         return ['customers', 'services', 'tasks', 'profile'].includes(tab);
       default:
@@ -153,6 +308,11 @@ export default function App() {
       case 'sales':
       case 'deals':
         return <DealsKanbanView />;
+      case 'quotes':
+      case 'proforma_invoices':
+        return <ProformaInvoicesView defaultType="sale" />;
+      case 'purchase_quotes':
+        return <ProformaInvoicesView defaultType="purchase" />;
       case 'leads':
         return <LeadsView />;
       case 'services':
@@ -181,12 +341,12 @@ export default function App() {
       {/* Top Bar Header */}
       <Header
         activeTab={currentActiveTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleTabChange}
         onOpenQuickSearch={() => setIsQuickSearchOpen(true)}
         onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
         onOpenUserGuide={() => setIsUserGuideOpen(true)}
-        onLogout={logout}
+        onLogout={handleLogout}
       />
 
       {/* Active Panel Supervision Banner */}
@@ -201,7 +361,7 @@ export default function App() {
           <button
             onClick={() => {
               exitUserPanel();
-              setActiveTab('dashboard');
+              handleTabChange('dashboard');
             }}
             className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-[11px] shadow-xs transition-all active:scale-95 flex items-center gap-1.5 shrink-0 self-end sm:self-auto"
           >
@@ -211,17 +371,15 @@ export default function App() {
         </div>
       )}
 
-
-
       {/* Main Container Layout */}
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         {/* Navigation Sidebar */}
         <Sidebar
           activeTab={currentActiveTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={handleTabChange}
           mobileOpen={mobileSidebarOpen}
           setMobileOpen={setMobileSidebarOpen}
-          onOpenAddCustomer={() => setActiveTab('customers_new')}
+          onOpenAddCustomer={() => handleTabChange('customers_new')}
           onOpenUserGuide={() => setIsUserGuideOpen(true)}
         />
 

@@ -71,9 +71,9 @@ export interface Deal {
   notes?: string;
 }
 
-export type TaskPriority = 'low' | 'medium' | 'high';
-export type TaskStatus = 'pending' | 'in_progress' | 'completed';
-export type TaskType = 'call' | 'meeting' | 'email' | 'followup' | 'other';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskType = 'call' | 'meeting' | 'email' | 'quote' | 'followup' | 'financial' | 'service' | 'other';
 
 export interface Task {
   id: string;
@@ -81,12 +81,17 @@ export interface Task {
   description: string;
   customerId?: string;
   customerName?: string;
+  companyName?: string;
+  phone?: string;
   assignedToUserId: string;
   dueDate: string; // YYYY-MM-DD
+  dueTime?: string; // HH:mm
   priority: TaskPriority;
   status: TaskStatus;
   type: TaskType;
   reminderMinutesBefore?: number;
+  outcome?: string; // نتیجه پیگیری
+  dealId?: string;
   createdAt: string;
 }
 
@@ -172,4 +177,44 @@ export interface ServiceRequest {
   completionDate?: string;
   notes?: string;
 }
+
+export type ProformaStatus = 'draft' | 'pending' | 'sent' | 'approved' | 'converted' | 'rejected';
+
+export interface ProformaItem {
+  id: string;
+  productId?: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number; // تومان
+  discountPercent?: number;
+  totalPrice: number; // تومان
+}
+
+export type ProformaType = 'sale' | 'purchase';
+
+export interface ProformaInvoice {
+  id: string;
+  invoiceType?: ProformaType; // 'sale' = پیش‌فاکتور فروش, 'purchase' = پیش‌فاکتور خرید
+  number: string; // e.g. WQ-1403-1001 or PQ-1403-2001
+  customerId: string;
+  customerName: string;
+  companyName: string;
+  phone: string;
+  address: string;
+  issueDate: string; // YYYY/MM/DD or Shamsi
+  validUntil: string; // YYYY/MM/DD or Shamsi
+  items: ProformaItem[];
+  subtotal: number;
+  discountTotal: number;
+  taxRate: number; // 10%
+  taxAmount: number;
+  grandTotal: number;
+  status: ProformaStatus;
+  termsAndConditions: string;
+  assignedToUserId: string;
+  createdAt: string;
+  dealId?: string;
+}
+
 

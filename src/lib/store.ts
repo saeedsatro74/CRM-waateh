@@ -13,6 +13,8 @@ import {
   DealStage,
   ServiceRequest,
   ServiceStatus,
+  ProformaInvoice,
+  ProformaStatus,
 } from '../types';
 import {
   initialUsers,
@@ -26,6 +28,7 @@ import {
   initialNotifications,
   initialCompanySettings,
   initialServiceRequests,
+  initialProformaInvoices,
 } from './initialData';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase';
 
@@ -34,6 +37,7 @@ const STORAGE_KEY = 'waateh_crm_app_v4_prod';
 interface CRMDataState {
   currentUser: User | null;
   primaryUser: User | null;
+  isAuthChecked: boolean;
   users: User[];
   customers: Customer[];
   leads: Lead[];
@@ -43,6 +47,7 @@ interface CRMDataState {
   products: Product[];
   customerFiles: CustomerFile[];
   serviceRequests: ServiceRequest[];
+  proformaInvoices: ProformaInvoice[];
   notifications: NotificationItem[];
   settings: CompanySettings;
   isSupabaseConnected: boolean;
@@ -62,19 +67,10 @@ function loadInitialState(): CRMDataState {
         loadedUsers.unshift(saeedInInitial);
       }
 
-      let loadedCurrentUser: User | null = parsed.currentUser !== undefined ? parsed.currentUser : initialUsers[0];
-      if (loadedCurrentUser) {
-        const matched = loadedUsers.find(
-          (u) => u.email.trim().toLowerCase() === loadedCurrentUser?.email.trim().toLowerCase() || u.id === loadedCurrentUser?.id
-        );
-        if (matched) {
-          loadedCurrentUser = { ...loadedCurrentUser, ...matched };
-        }
-      }
-
       return {
-        currentUser: loadedCurrentUser,
+        currentUser: null,
         primaryUser: null,
+        isAuthChecked: false,
         users: loadedUsers,
         customers: parsed.customers || [],
         leads: parsed.leads || [],
@@ -84,6 +80,7 @@ function loadInitialState(): CRMDataState {
         products: parsed.products || [],
         customerFiles: parsed.customerFiles || [],
         serviceRequests: parsed.serviceRequests || [],
+        proformaInvoices: parsed.proformaInvoices || initialProformaInvoices,
         notifications: parsed.notifications || [],
         settings: parsed.settings || initialCompanySettings,
         isSupabaseConnected: false,
@@ -95,8 +92,9 @@ function loadInitialState(): CRMDataState {
   }
 
   return {
-    currentUser: initialUsers[0],
+    currentUser: null,
     primaryUser: null,
+    isAuthChecked: false,
     users: initialUsers,
     customers: initialCustomers,
     leads: initialLeads,
@@ -106,6 +104,7 @@ function loadInitialState(): CRMDataState {
     products: initialProducts,
     customerFiles: initialCustomerFiles,
     serviceRequests: initialServiceRequests,
+    proformaInvoices: initialProformaInvoices,
     notifications: initialNotifications,
     settings: initialCompanySettings,
     isSupabaseConnected: false,
@@ -117,7 +116,8 @@ let globalState = loadInitialState();
 const listeners = new Set<() => void>();
 
 function notify() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
+  const stateToSave = { ...globalState, currentUser: null, primaryUser: null };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
   listeners.forEach((listener) => listener());
 }
 
@@ -308,12 +308,101 @@ async function syncWithSupabase() {
   }
 }
 
+let authCheckPromise: Promise<void> | null = null;
+
+export async function checkAuthSession() {
+  if (globalState.isAuthChecked && authCheckPromise) return authCheckPromise;
+
+  authCheckPromise = (async () => {
+    const client = getSupabaseClient();
+    if (client && isSupabaseConfigured) {
+      try {
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user?.email) {
+          const userEmail = session.user.email.trim().toLowerCase();
+          let matched = globalState.users.find(
+            (u) => u.email.trim().toLowerCase() === userEmail
+          );
+
+          if (!matched) {
+            const { data: dbUserData } = await client
+              .from('users')
+              .select('*')
+              .ilike('email', userEmail)
+              .maybeSingle();
+
+            if (dbUserData) {
+              matched = {
+                id: dbUserData.id,
+                name: dbUserData.name || 'کاربر سیستم',
+                email: dbUserData.email || userEmail,
+                role: dbUserData.role || 'sales',
+                department: dbUserData.department || 'واحد مربوطه',
+                phone: dbUserData.phone || '',
+                avatar: dbUserData.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=250',
+                isActive: dbUserData.is_active ?? true,
+              };
+            }
+          }
+
+          if (matched && matched.isActive !== false) {
+            globalState.currentUser = matched;
+            sessionStorage.setItem('waateh_session_active', JSON.stringify({ email: matched.email }));
+          } else {
+            globalState.currentUser = null;
+            sessionStorage.removeItem('waateh_session_active');
+          }
+        } else {
+          globalState.currentUser = null;
+          sessionStorage.removeItem('waateh_session_active');
+        }
+      } catch (err) {
+        console.warn('Error checking auth session:', err);
+        globalState.currentUser = null;
+        sessionStorage.removeItem('waateh_session_active');
+      }
+    } else {
+      const localAuthSession = sessionStorage.getItem('waateh_session_active');
+      if (localAuthSession) {
+        try {
+          const sessionUser = JSON.parse(localAuthSession);
+          if (sessionUser && sessionUser.email) {
+            const matched = globalState.users.find(
+              (u) => u.email.trim().toLowerCase() === sessionUser.email.trim().toLowerCase()
+            );
+            if (matched && matched.isActive !== false) {
+              globalState.currentUser = matched;
+            } else {
+              globalState.currentUser = null;
+              sessionStorage.removeItem('waateh_session_active');
+            }
+          }
+        } catch {
+          globalState.currentUser = null;
+          sessionStorage.removeItem('waateh_session_active');
+        }
+      } else {
+        globalState.currentUser = null;
+      }
+    }
+
+    globalState.isAuthChecked = true;
+    notify();
+  })();
+
+  return authCheckPromise;
+}
+
 export function useCRMStore() {
   const [state, setState] = useState<CRMDataState>(globalState);
 
   useEffect(() => {
     const handleChange = () => setState({ ...globalState });
     listeners.add(handleChange);
+
+    if (!globalState.isAuthChecked) {
+      checkAuthSession();
+    }
 
     if (isSupabaseConfigured && !hasFetchedSupabase) {
       syncWithSupabase();
@@ -328,6 +417,7 @@ export function useCRMStore() {
   const logout = async () => {
     globalState.currentUser = null;
     globalState.primaryUser = null;
+    sessionStorage.removeItem('waateh_session_active');
     notify();
 
     const client = getSupabaseClient();
@@ -343,6 +433,11 @@ export function useCRMStore() {
   const setCurrentUser = (user: User | null) => {
     globalState.currentUser = user;
     globalState.primaryUser = null;
+    if (user) {
+      sessionStorage.setItem('waateh_session_active', JSON.stringify({ email: user.email }));
+    } else {
+      sessionStorage.removeItem('waateh_session_active');
+    }
     notify();
   };
 
@@ -865,6 +960,23 @@ export function useCRMStore() {
     }
   };
 
+  const updateDeal = async (dealId: string, updates: Partial<Deal>) => {
+    globalState.deals = globalState.deals.map((d) => (d.id === dealId ? { ...d, ...updates } : d));
+    notify();
+
+    const client = getSupabaseClient();
+    if (client && !dealId.startsWith('deal-')) {
+      const dbUpdates: any = {};
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.stage) dbUpdates.stage = updates.stage;
+      if (updates.value !== undefined) dbUpdates.value = updates.value;
+      if (updates.probability !== undefined) dbUpdates.probability = updates.probability;
+      if (updates.expectedCloseDate) dbUpdates.expected_close_date = updates.expectedCloseDate;
+
+      await client.from('deals').update(dbUpdates).eq('id', dealId);
+    }
+  };
+
   const deleteDeal = async (dealId: string) => {
     globalState.deals = globalState.deals.filter((d) => d.id !== dealId);
     notify();
@@ -917,6 +1029,22 @@ export function useCRMStore() {
       } catch (e: any) {
         console.error('Supabase task insert error:', e);
       }
+    }
+  };
+
+  const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    globalState.tasks = globalState.tasks.map((t) => (t.id === taskId ? { ...t, ...updates } : t));
+    notify();
+
+    const client = getSupabaseClient();
+    if (client && !taskId.startsWith('task-')) {
+      const dbUpdates: any = {};
+      if (updates.title) dbUpdates.title = updates.title;
+      if (updates.dueDate) dbUpdates.due_date = updates.dueDate;
+      if (updates.status) dbUpdates.status = updates.status;
+      if (updates.customerId && !updates.customerId.startsWith('cust-')) dbUpdates.customer_id = updates.customerId;
+
+      await client.from('tasks').update(dbUpdates).eq('id', taskId);
     }
   };
 
@@ -1094,12 +1222,57 @@ export function useCRMStore() {
     notify();
   };
 
+  // Proforma Invoices Actions
+  const addProformaInvoice = (pfData: Omit<ProformaInvoice, 'id' | 'createdAt'>) => {
+    const newPf: ProformaInvoice = {
+      ...pfData,
+      id: `pf-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+    globalState.proformaInvoices.unshift(newPf);
+    addNotification({
+      title: 'پیش‌فاکتور جدید صادر شد',
+      message: `پیش‌فاکتور ${newPf.number} برای ${newPf.companyName || newPf.customerName} صادر گردید.`,
+      type: 'deal',
+    });
+    notify();
+    return newPf;
+  };
+
+  const updateProformaInvoice = (id: string, updates: Partial<ProformaInvoice>) => {
+    globalState.proformaInvoices = globalState.proformaInvoices.map((p) =>
+      p.id === id ? { ...p, ...updates } : p
+    );
+    notify();
+  };
+
+  const updateProformaStatus = (id: string, status: ProformaStatus) => {
+    globalState.proformaInvoices = globalState.proformaInvoices.map((p) =>
+      p.id === id ? { ...p, status } : p
+    );
+    const updated = globalState.proformaInvoices.find((p) => p.id === id);
+    if (updated) {
+      addNotification({
+        title: 'تغییر وضعیت پیش‌فاکتور',
+        message: `وضعیت پیش‌فاکتور ${updated.number} به‌روزرسانی شد.`,
+        type: 'deal',
+      });
+    }
+    notify();
+  };
+
+  const deleteProformaInvoice = (id: string) => {
+    globalState.proformaInvoices = globalState.proformaInvoices.filter((p) => p.id !== id);
+    notify();
+  };
+
   const resetDataToDefault = () => {
     localStorage.removeItem(STORAGE_KEY);
     hasFetchedSupabase = false;
     globalState = {
-      currentUser: initialUsers[0],
+      currentUser: null,
       primaryUser: null,
+      isAuthChecked: false,
       users: initialUsers,
       customers: initialCustomers,
       leads: initialLeads,
@@ -1109,6 +1282,7 @@ export function useCRMStore() {
       products: initialProducts,
       customerFiles: initialCustomerFiles,
       serviceRequests: initialServiceRequests,
+      proformaInvoices: initialProformaInvoices,
       notifications: initialNotifications,
       settings: initialCompanySettings,
       isSupabaseConnected: false,
@@ -1180,6 +1354,7 @@ export function useCRMStore() {
     state,
     currentUser: state.currentUser,
     primaryUser: state.primaryUser,
+    isAuthChecked: state.isAuthChecked,
     actualUser,
     actualIsAdmin,
     actualIsSalesManager,
@@ -1224,12 +1399,14 @@ export function useCRMStore() {
     accessibleDeals,
     allDeals: state.deals,
     addDeal,
+    updateDeal,
     updateDealStage,
     deleteDeal,
     // Tasks
     accessibleTasks,
     allTasks: state.tasks,
     addTask,
+    updateTask,
     toggleTaskStatus,
     deleteTask,
     // Communications
@@ -1243,6 +1420,12 @@ export function useCRMStore() {
     customerFiles: state.customerFiles,
     addCustomerFile,
     deleteCustomerFile,
+    // Proforma Invoices (پیش‌فاکتورها)
+    proformaInvoices: state.proformaInvoices,
+    addProformaInvoice,
+    updateProformaInvoice,
+    updateProformaStatus,
+    deleteProformaInvoice,
     // Notifications
     notifications: state.notifications,
     unreadNotificationCount: state.notifications.filter((n) => !n.isRead).length,

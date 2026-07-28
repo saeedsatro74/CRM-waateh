@@ -17,6 +17,8 @@ import {
   BarChart3,
   User as UserIcon,
   HelpCircle,
+  FileText,
+  ShoppingBag,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -74,6 +76,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Target,
       color: 'text-purple-600 bg-purple-50 group-hover:bg-purple-100',
       activeBg: 'bg-purple-600 text-white shadow-md shadow-purple-200',
+      roles: ['admin', 'sales_manager', 'sales'],
+    },
+    {
+      id: 'quotes',
+      label: 'پیش‌فاکتور فروش',
+      icon: FileText,
+      color: 'text-emerald-600 bg-emerald-50 group-hover:bg-emerald-100',
+      activeBg: 'bg-emerald-700 text-white shadow-md shadow-emerald-200',
+      roles: ['admin', 'sales_manager', 'sales'],
+    },
+    {
+      id: 'purchase_quotes',
+      label: 'پیش‌فاکتور خرید',
+      icon: ShoppingBag,
+      color: 'text-amber-600 bg-amber-50 group-hover:bg-amber-100',
+      activeBg: 'bg-amber-700 text-white shadow-md shadow-amber-200',
       roles: ['admin', 'sales_manager', 'sales'],
     },
     {
