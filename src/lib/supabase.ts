@@ -41,6 +41,27 @@ export function getActiveSupabaseCredentials() {
 
 const activeCredentials = getActiveSupabaseCredentials();
 
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    Object.keys(window.localStorage).forEach((key) => {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) {
+        window.localStorage.removeItem(key);
+      }
+    });
+  } catch (e) {
+    // Ignore error
+  }
+}
+
+const getSupabaseOptions = () => ({
+  auth: {
+    storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
+
 export const isSupabaseConfigured = Boolean(
   activeCredentials.url &&
   activeCredentials.key &&
@@ -48,14 +69,14 @@ export const isSupabaseConfigured = Boolean(
 );
 
 export let supabase: SupabaseClient | null = isSupabaseConfigured
-  ? createClient(activeCredentials.url, activeCredentials.key)
+  ? createClient(activeCredentials.url, activeCredentials.key, getSupabaseOptions())
   : null;
 
 export function getSupabaseClient(): SupabaseClient | null {
   const creds = getActiveSupabaseCredentials();
   if (creds.url && creds.key && creds.url.startsWith('http')) {
     if (!supabase) {
-      supabase = createClient(creds.url, creds.key);
+      supabase = createClient(creds.url, creds.key, getSupabaseOptions());
     }
     return supabase;
   }
@@ -73,7 +94,7 @@ export function saveSupabaseCredentials(rawUrl: string, rawKey: string) {
   localStorage.setItem('waateh_supabase_custom_config', JSON.stringify({ url, key }));
 
   if (url && key && url.startsWith('http')) {
-    supabase = createClient(url, key);
+    supabase = createClient(url, key, getSupabaseOptions());
   } else {
     supabase = null;
   }
@@ -96,7 +117,7 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; mess
   }
 
   try {
-    const testClient = createClient(creds.url, creds.key);
+    const testClient = createClient(creds.url, creds.key, getSupabaseOptions());
     const { data, error } = await testClient.from('customers').select('id').limit(1);
 
     if (error) {
