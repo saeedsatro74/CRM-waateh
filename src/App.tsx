@@ -23,6 +23,7 @@ import { UsersView } from './components/views/UsersView';
 import { SettingsView } from './components/views/SettingsView';
 import { ProfileView } from './components/views/ProfileView';
 import { ProformaInvoicesView } from './components/views/ProformaInvoicesView';
+import { InternalMarketingView } from './components/views/InternalMarketingView';
 import { NotFoundView } from './components/views/NotFoundView';
 
 import { CustomerStatus, CustomerType } from './types';
@@ -41,6 +42,8 @@ const getTabFromPath = (path: string): string => {
     case '/deals':
     case '/sales':
       return 'deals';
+    case '/internal_marketing':
+      return 'internal_marketing';
     case '/leads':
       return 'leads';
     case '/proforma_invoices':
@@ -80,6 +83,8 @@ const getPathFromTab = (tab: string): string => {
     case 'deals':
     case 'sales':
       return '/deals';
+    case 'internal_marketing':
+      return '/internal_marketing';
     case 'leads':
       return '/leads';
     case 'proforma_invoices':
@@ -259,7 +264,7 @@ export default function App() {
       case 'admin':
         return true;
       case 'sales_manager':
-        return ['dashboard', 'customers', 'customers_new', 'sales', 'deals', 'leads', 'quotes', 'purchase_quotes', 'proforma_invoices', 'products', 'tasks', 'reports', 'profile'].includes(tab);
+        return ['dashboard', 'customers', 'customers_new', 'sales', 'deals', 'internal_marketing', 'leads', 'quotes', 'purchase_quotes', 'proforma_invoices', 'products', 'tasks', 'reports', 'profile'].includes(tab);
       case 'sales':
         return ['customers', 'customers_new', 'sales', 'deals', 'leads', 'quotes', 'purchase_quotes', 'proforma_invoices', 'tasks', 'profile'].includes(tab);
       case 'service':
@@ -308,6 +313,8 @@ export default function App() {
       case 'sales':
       case 'deals':
         return <DealsKanbanView />;
+      case 'internal_marketing':
+        return <InternalMarketingView />;
       case 'quotes':
       case 'proforma_invoices':
         return <ProformaInvoicesView defaultType="sale" />;

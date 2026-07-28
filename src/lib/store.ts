@@ -15,6 +15,12 @@ import {
   ServiceStatus,
   ProformaInvoice,
   ProformaStatus,
+  Opportunity,
+  OpportunityStage,
+  OpportunityFile,
+  OpportunityApprovalData,
+  OpportunityWorkflowLog,
+  OpportunityItem,
 } from '../types';
 import {
   initialUsers,
@@ -42,6 +48,7 @@ interface CRMDataState {
   customers: Customer[];
   leads: Lead[];
   deals: Deal[];
+  opportunities: Opportunity[];
   tasks: Task[];
   communications: Communication[];
   products: Product[];
@@ -75,6 +82,7 @@ function loadInitialState(): CRMDataState {
         customers: parsed.customers || [],
         leads: parsed.leads || [],
         deals: parsed.deals || [],
+        opportunities: parsed.opportunities || [],
         tasks: parsed.tasks || [],
         communications: parsed.communications || [],
         products: parsed.products || [],
@@ -99,6 +107,7 @@ function loadInitialState(): CRMDataState {
     customers: initialCustomers,
     leads: initialLeads,
     deals: initialDeals,
+    opportunities: [],
     tasks: initialTasks,
     communications: initialCommunications,
     products: initialProducts,
@@ -987,6 +996,188 @@ export function useCRMStore() {
     }
   };
 
+  // Opportunities (فرصت‌های فروش پیشرفته با چرخه تاییدات)
+  const addOpportunity = async (oppData: Partial<Opportunity>) => {
+    const tempId = `opp-${Date.now()}`;
+    const created: Opportunity = {
+      id: tempId,
+      number: `WQ-${1403}-${Math.floor(1000 + Math.random() * 9000)}`,
+      title: oppData.title || 'فرصت تجهیزات جدید',
+      customerId: oppData.customerId || '',
+      customerName: oppData.customerName || 'مشتری جدید',
+      companyName: oppData.companyName || oppData.customerName || 'شرکت خریدار',
+      phone: oppData.phone || '',
+      value: oppData.value || 0,
+      stage: 'registration',
+      assignedToUserId: oppData.assignedToUserId || globalState.currentUser?.id || 'user-2',
+      createdAt: new Date().toLocaleDateString('fa-IR'),
+      updatedAt: new Date().toLocaleDateString('fa-IR'),
+      notes: oppData.notes || '',
+      items: oppData.items || [],
+      files: oppData.files || [],
+      approvalData: oppData.approvalData || {
+        discountPercent: 5,
+        executionTimeDays: 30,
+        priceValidityDays: 7,
+        warrantyTerms: '۱۸ ماه پس از تحویل / ۱۲ ماه پس از نصب (هرکدام زودتر فرا برسد)',
+        deliveryLocationType: 'factory',
+      },
+      history: [
+        {
+          id: `log-${Date.now()}`,
+          opportunityId: tempId,
+          fromStage: 'none',
+          toStage: 'registration',
+          action: 'created',
+          performedByUserId: globalState.currentUser?.id || 'user-1',
+          performedByName: globalState.currentUser?.name || 'کارشناس فروش',
+          performedByRole: globalState.currentUser?.role || 'sales',
+          timestamp: new Date().toLocaleDateString('fa-IR'),
+          notes: 'فرصت فروش اولیه در سیستم ثبت گردید.',
+        },
+      ],
+    };
+
+    globalState.opportunities.unshift(created);
+
+    addNotification({
+      title: 'فرصت فروش جدید ثبت شد',
+      message: `فرصت «${created.title}» متعلق به ${created.companyName} توسط ${globalState.currentUser?.name || 'کارشناس'} ثبت گردید.`,
+      type: 'deal',
+      linkTab: 'sales',
+    });
+
+    notify();
+  };
+
+  const updateOpportunityStage = async (id: string, newStage: OpportunityStage, notes?: string) => {
+    const opp = globalState.opportunities.find((o) => o.id === id);
+    if (!opp) return;
+
+    const oldStage = opp.stage;
+    const historyLog: OpportunityWorkflowLog = {
+      id: `log-${Date.now()}`,
+      opportunityId: id,
+      fromStage: oldStage,
+      toStage: newStage,
+      action: 'advance',
+      performedByUserId: globalState.currentUser?.id || 'user-1',
+      performedByName: globalState.currentUser?.name || 'کاربر سیستم',
+      performedByRole: globalState.currentUser?.role || 'sales',
+      timestamp: new Date().toLocaleDateString('fa-IR'),
+      notes: notes || `انتقال به مرحله ${newStage}`,
+    };
+
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === id) {
+        return {
+          ...o,
+          stage: newStage,
+          updatedAt: new Date().toLocaleDateString('fa-IR'),
+          history: [historyLog, ...(o.history || [])],
+        };
+      }
+      return o;
+    });
+
+    addNotification({
+      title: 'تغییر وضعیت فرصت فروش',
+      message: `فرصت «${opp.title}» به مرحله جدید منتقل شد.`,
+      type: 'deal',
+      linkTab: 'sales',
+    });
+
+    notify();
+  };
+
+  const addOpportunityFile = (oppId: string, file: OpportunityFile) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        const updatedFiles = [file, ...(o.files || [])];
+        const log: OpportunityWorkflowLog = {
+          id: `log-${Date.now()}`,
+          opportunityId: oppId,
+          fromStage: o.stage,
+          toStage: o.stage,
+          action: 'file_added',
+          performedByUserId: globalState.currentUser?.id || 'user-1',
+          performedByName: globalState.currentUser?.name || 'کاربر',
+          performedByRole: globalState.currentUser?.role || 'sales',
+          timestamp: new Date().toLocaleDateString('fa-IR'),
+          notes: `فایل پیوست «${file.fileName}» بارگذاری گردید.`,
+        };
+        return { ...o, files: updatedFiles, history: [log, ...(o.history || [])] };
+      }
+      return o;
+    });
+    notify();
+  };
+
+  const deleteOpportunityFile = (oppId: string, fileId: string) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        return { ...o, files: (o.files || []).filter((f) => f.id !== fileId) };
+      }
+      return o;
+    });
+    notify();
+  };
+
+  const saveOpportunityApprovalData = (oppId: string, approvalData: OpportunityApprovalData) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        const log: OpportunityWorkflowLog = {
+          id: `log-${Date.now()}`,
+          opportunityId: oppId,
+          fromStage: o.stage,
+          toStage: o.stage,
+          action: 'approval_saved',
+          performedByUserId: globalState.currentUser?.id || 'user-1',
+          performedByName: globalState.currentUser?.name || 'مدیرعامل',
+          performedByRole: globalState.currentUser?.role || 'admin',
+          timestamp: new Date().toLocaleDateString('fa-IR'),
+          notes: 'شرایط و مجوزهای مدیرعامل (تخفیف، زمان اجرا، اعتبار و گارانتی) به ثبت رسید.',
+        };
+        return {
+          ...o,
+          approvalData,
+          history: [log, ...(o.history || [])],
+        };
+      }
+      return o;
+    });
+    notify();
+  };
+
+  const addOpportunityItem = (oppId: string, item: OpportunityItem) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        const items = [...(o.items || []), item];
+        const newValue = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+        return { ...o, items, value: newValue };
+      }
+      return o;
+    });
+    notify();
+  };
+
+  const removeOpportunityItem = (oppId: string, itemId: string) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        const items = (o.items || []).filter((i) => i.id !== itemId);
+        const newValue = items.reduce((sum, i) => sum + (i.totalPrice || 0), 0);
+        return { ...o, items, value: newValue };
+      }
+      return o;
+    });
+    notify();
+  };
+
+  const deleteOpportunity = (oppId: string) => {
+    globalState.opportunities = globalState.opportunities.filter((o) => o.id !== oppId);
+    notify();
+  };
+
   // Tasks (وظایف)
   const addTask = async (taskData: Omit<Task, 'id' | 'createdAt'>) => {
     const tempId = `task-${Date.now()}`;
@@ -1277,6 +1468,7 @@ export function useCRMStore() {
       customers: initialCustomers,
       leads: initialLeads,
       deals: initialDeals,
+      opportunities: [],
       tasks: initialTasks,
       communications: initialCommunications,
       products: initialProducts,
@@ -1402,6 +1594,16 @@ export function useCRMStore() {
     updateDeal,
     updateDealStage,
     deleteDeal,
+    // Opportunities (فرصت‌های پیشرفته)
+    opportunities: state.opportunities,
+    addOpportunity,
+    updateOpportunityStage,
+    addOpportunityFile,
+    deleteOpportunityFile,
+    saveOpportunityApprovalData,
+    addOpportunityItem,
+    removeOpportunityItem,
+    deleteOpportunity,
     // Tasks
     accessibleTasks,
     allTasks: state.tasks,

@@ -15,6 +15,7 @@ import {
   Building2,
   PhoneCall,
   BarChart3,
+  TrendingUp,
   User as UserIcon,
   HelpCircle,
   FileText,
@@ -77,6 +78,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       color: 'text-purple-600 bg-purple-50 group-hover:bg-purple-100',
       activeBg: 'bg-purple-600 text-white shadow-md shadow-purple-200',
       roles: ['admin', 'sales_manager', 'sales'],
+    },
+    {
+      id: 'internal_marketing',
+      label: 'بازارگردانی داخلی',
+      icon: TrendingUp,
+      color: 'text-indigo-600 bg-indigo-50 group-hover:bg-indigo-100',
+      activeBg: 'bg-indigo-600 text-white shadow-md shadow-indigo-200',
+      roles: ['admin', 'sales_manager'],
     },
     {
       id: 'quotes',

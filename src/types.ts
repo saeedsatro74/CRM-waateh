@@ -37,7 +37,93 @@ export interface Customer {
   awaitingResponse?: boolean;
 }
 
+export type OpportunityStage =
+  | 'registration' // ۱. ثبت فرصت
+  | 'pricing' // ۲. قیمت گذاری
+  | 'ceo_review' // ۳. بررسی مدیرعامل
+  | 'internal_marketing' // ۴. بازارگردانی داخلی
+  | 'proforma' // ۵. پیش فاکتور
+  | 'technical_proposal' // ۶. پیشنهاد فنی
+  | 'final_approval' // ۷. تایید نهایی
+  | 'sent'; // ۸. ارسال شد
+
 export type DealStage = 'initial_contact' | 'negotiation' | 'proposal' | 'contract' | 'won' | 'lost';
+
+export interface OpportunityFile {
+  id: string;
+  opportunityId: string;
+  fileName: string;
+  fileSize: string;
+  fileType: string; // image, video, pdf, docx, xlsx, pptx, etc.
+  dataUrl?: string; // base64 or blob URL
+  uploadedAt: string;
+  uploadedByUserId: string;
+  uploadedByName: string;
+  uploadedByRole?: UserRole;
+}
+
+export interface OpportunityApprovalData {
+  discountPercent?: number; // درصد تخفیف
+  executionTimeDays?: number; // زمان اجرا (روز کاری)
+  priceValidityDays?: number; // اعتبار قیمت (روز)
+  warrantyTerms?: string; // e.g. "۱۸ ماه پس از تحویل / ۱۲ ماه پس از نصب - هرکدام زودتر فرا برسد"
+  deliveryLocationType?: 'factory' | 'custom';
+  deliveryLocationCustom?: string;
+  adminNotes?: string;
+  approvedByAdminUserId?: string;
+  approvedByAdminName?: string;
+  approvedAt?: string;
+  isStamped?: boolean;
+}
+
+export interface OpportunityWorkflowLog {
+  id: string;
+  opportunityId: string;
+  fromStage: OpportunityStage | string;
+  toStage: OpportunityStage | string;
+  action: 'advance' | 'reject' | 'edit' | 'file_added' | 'approval_saved' | 'created';
+  performedByUserId: string;
+  performedByName: string;
+  performedByRole: UserRole;
+  timestamp: string;
+  notes?: string;
+}
+
+export interface OpportunityItem {
+  id: string;
+  productId?: string;
+  name: string;
+  code?: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number; // تومان
+  totalPrice: number; // تومان
+  specs?: string; // مشخصات فنی دستگاه
+}
+
+export interface Opportunity {
+  id: string;
+  number?: string;
+  title: string;
+  customerId: string;
+  customerName: string;
+  companyName: string;
+  phone: string;
+  value: number; // تومان
+  stage: OpportunityStage;
+  assignedToUserId: string;
+  createdAt: string;
+  updatedAt: string;
+  notes?: string;
+  items: OpportunityItem[];
+  files: OpportunityFile[];
+  approvalData?: OpportunityApprovalData;
+  history: OpportunityWorkflowLog[];
+  hasPreInvoice?: boolean;
+  hasTechnicalProposal?: boolean;
+  finalPdfGenerated?: boolean;
+  finalPdfUrl?: string;
+}
 
 export interface Lead {
   id: string;

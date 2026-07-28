@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useCRMStore } from '../../lib/store';
-import { Deal, DealStage } from '../../types';
+import { Deal, DealStage, Opportunity } from '../../types';
+import { OpportunityDetailModal } from '../opportunities/OpportunityDetailModal';
+import { OPPORTUNITY_STAGES } from '../opportunities/OpportunityStageHeader';
 import {
   KanbanSquare,
   Plus,
@@ -47,10 +49,21 @@ export const DealsKanbanView: React.FC = () => {
     products,
     addProformaInvoice,
     addTask,
+    opportunities,
+    addOpportunity,
+    updateOpportunityStage,
+    addOpportunityFile,
+    deleteOpportunityFile,
+    saveOpportunityApprovalData,
+    addOpportunityItem,
+    removeOpportunityItem,
+    deleteOpportunity,
+    settings,
   } = useCRMStore();
 
-  // View state: kanban, list, or analytics
-  const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'analytics'>('kanban');
+  // View state: workflow (8-stage advanced), kanban, list, or analytics
+  const [viewMode, setViewMode] = useState<'workflow' | 'kanban' | 'list' | 'analytics'>('workflow');
+  const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
 
   // Filter & Search states
   const [searchTerm, setSearchTerm] = useState('');
@@ -429,6 +442,18 @@ export const DealsKanbanView: React.FC = () => {
           {/* Mode Tabs */}
           <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 w-full md:w-auto">
             <button
+              onClick={() => setViewMode('workflow')}
+              className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                viewMode === 'workflow'
+                  ? 'bg-purple-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              <span>چرخه ۸ مرحله‌ای فروش و تاییدات</span>
+            </button>
+
+            <button
               onClick={() => setViewMode('kanban')}
               className={`flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 viewMode === 'kanban'
@@ -516,6 +541,124 @@ export const DealsKanbanView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* VIEW 0: 8-STAGE WORKFLOW (ADVANCED OPPORTUNITIES) */}
+      {viewMode === 'workflow' && (
+        <div className="space-y-6">
+          <div className="bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white rounded-3xl p-6 shadow-xl border border-purple-800/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="bg-purple-500/20 text-purple-300 font-extrabold text-xs px-3 py-1 rounded-full border border-purple-500/30">
+                  فرایند پیشرفته شرکت واته
+                </span>
+                <span className="bg-emerald-500/20 text-emerald-300 font-extrabold text-xs px-3 py-1 rounded-full border border-emerald-500/30">
+                  ۸ مرحله تایید و گردش کار
+                </span>
+              </div>
+              <h2 className="font-black text-xl sm:text-2xl tracking-tight">
+                چرخه تاییدات و گردش مستندات فرصت‌های فروش
+              </h2>
+              <p className="text-xs text-purple-200/80 max-w-2xl leading-relaxed">
+                مدیریت کامل فایل‌های پیوست (عکس، ویدیو، PDF، فایل‌های مهندسی)، تعیین تخفیف و شرایط گارانتی توسط مدیرعامل، بازارگردانی و صدور سند نهایی با مهر رسمی.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                addOpportunity({
+                  title: 'فرصت فروش چیلر تراکمی و سیستم تهویه',
+                  companyName: 'شرکت صنایع و تجهیزات نوین',
+                  customerName: 'مهندس رضایی',
+                  phone: '09121112233',
+                  value: 2800000000,
+                });
+              }}
+              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs px-4 py-3 rounded-2xl transition-all shadow-lg flex items-center gap-2 shrink-0 active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>ثبت سریع فرصت فروش جدید</span>
+            </button>
+          </div>
+
+          {opportunities.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 border border-slate-200 text-center shadow-xs">
+              <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+              <h3 className="font-extrabold text-base text-slate-800">هیچ فرصت فروشی در چرخه ۸ مرحله‌ای ثبت نشده است.</h3>
+              <p className="text-xs text-slate-500 mt-1 mb-4">
+                برای شروع، دکمه «ثبت سریع فرصت فروش جدید» را فشار دهید.
+              </p>
+              <button
+                onClick={() => {
+                  addOpportunity({
+                    title: 'فرصت جدید چیلر و هواساز',
+                    companyName: 'شرکت داروسازی البرز',
+                    customerName: 'دکتر محمدی',
+                    phone: '09123456789',
+                    value: 3500000000,
+                  });
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
+              >
+                ایجاد نمونه اولیه فرصت فروش
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {opportunities.map((opp) => {
+                const stageInfo = OPPORTUNITY_STAGES.find((s) => s.id === opp.stage);
+
+                return (
+                  <motion.div
+                    key={opp.id}
+                    whileHover={{ y: -3 }}
+                    onClick={() => setSelectedOpp(opp)}
+                    className="bg-white border border-slate-200/80 hover:border-purple-500/60 rounded-3xl p-5 space-y-4 shadow-sm hover:shadow-xl transition-all cursor-pointer group relative overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] font-extrabold bg-purple-50 text-purple-700 px-2.5 py-1 rounded-full border border-purple-200">
+                        شماره {toPersianDigits(opp.number || `WQ-${opp.id.slice(-6)}`)}
+                      </span>
+
+                      <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-1 rounded-xl">
+                        {stageInfo?.stepNumber}. {stageInfo?.label}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="font-extrabold text-base text-slate-900 group-hover:text-purple-700 transition-colors">
+                        {opp.title}
+                      </h3>
+                      <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{opp.companyName || opp.customerName}</span>
+                      </p>
+                    </div>
+
+                    <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 flex items-center justify-between text-xs">
+                      <span className="text-slate-500">ارزش اولیه:</span>
+                      <span className="font-black text-slate-900 text-sm">
+                        {toPersianDigits(formatTomans(opp.value))} تومان
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100 text-slate-500">
+                      <span className="flex items-center gap-1 font-semibold">
+                        <FileText className="w-3.5 h-3.5 text-purple-500" />
+                        <span>{toPersianDigits(opp.files?.length || 0)} فایل پیوست</span>
+                      </span>
+
+                      <span className="text-purple-600 font-extrabold group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                        <span>بررسی و اقدام</span>
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* VIEW 1: KANBAN BOARD */}
       {viewMode === 'kanban' && (
@@ -1148,6 +1291,48 @@ export const DealsKanbanView: React.FC = () => {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Opportunity Detail Modal */}
+      {selectedOpp && (
+        <OpportunityDetailModal
+          opportunity={selectedOpp}
+          currentUser={currentUser}
+          isOpen={Boolean(selectedOpp)}
+          onClose={() => setSelectedOpp(null)}
+          onUpdateStage={(id, stage, notes) => {
+            updateOpportunityStage(id, stage, notes);
+            const updated = opportunities.find((o) => o.id === id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onAddFile={(file) => {
+            addOpportunityFile(selectedOpp.id, file);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onDeleteFile={(fileId) => {
+            deleteOpportunityFile(selectedOpp.id, fileId);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onSaveApproval={(approvalData) => {
+            saveOpportunityApprovalData(selectedOpp.id, approvalData);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onAddItem={(item) => {
+            addOpportunityItem(selectedOpp.id, item);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onRemoveItem={(itemId) => {
+            removeOpportunityItem(selectedOpp.id, itemId);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          productsCatalog={products}
+          companySettings={settings}
+        />
+      )}
     </div>
   );
 };
