@@ -7,6 +7,7 @@ import { QuickSearchModal } from './components/QuickSearchModal';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { CustomerDetailModal } from './components/CustomerDetailModal';
 import { UserGuideModal } from './components/UserGuideModal';
+import { WordProposalBuilderModal } from './components/opportunities/WordProposalBuilderModal';
 
 // Views
 import { DashboardView } from './components/views/DashboardView';
@@ -126,6 +127,7 @@ export default function App() {
   const [isQuickSearchOpen, setIsQuickSearchOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
   const [isUserGuideOpen, setIsUserGuideOpen] = useState(false);
+  const [isWordProposalModalOpen, setIsWordProposalModalOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // New Customer Modal Form State
@@ -312,9 +314,8 @@ export default function App() {
         return <AddCustomerView onNavigateCustomers={() => setActiveTab('customers')} />;
       case 'sales':
       case 'deals':
-        return <DealsKanbanView />;
       case 'internal_marketing':
-        return <InternalMarketingView />;
+        return <DealsKanbanView />;
       case 'quotes':
       case 'proforma_invoices':
         return <ProformaInvoicesView defaultType="sale" />;
@@ -353,6 +354,7 @@ export default function App() {
         onToggleMobileSidebar={() => setMobileSidebarOpen(!mobileSidebarOpen)}
         onOpenNotifications={() => setIsNotificationDrawerOpen(true)}
         onOpenUserGuide={() => setIsUserGuideOpen(true)}
+        onOpenWordProposalModal={() => setIsWordProposalModalOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -379,7 +381,7 @@ export default function App() {
       )}
 
       {/* Main Container Layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex w-full max-w-[1750px] mx-auto">
         {/* Navigation Sidebar */}
         <Sidebar
           activeTab={currentActiveTab}
@@ -391,7 +393,7 @@ export default function App() {
         />
 
         {/* View Workspace Container */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto min-w-0">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 overflow-y-auto min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentActiveTab}
@@ -605,6 +607,12 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Global Word Proposal Builder Modal */}
+      <WordProposalBuilderModal
+        isOpen={isWordProposalModalOpen}
+        onClose={() => setIsWordProposalModalOpen(false)}
+      />
     </div>
   );
 }

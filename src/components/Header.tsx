@@ -30,6 +30,7 @@ interface HeaderProps {
   onToggleMobileSidebar: () => void;
   onOpenNotifications: () => void;
   onOpenUserGuide: () => void;
+  onOpenWordProposalModal?: () => void;
   onLogout: () => void;
 }
 
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
   onOpenNotifications,
   onOpenUserGuide,
+  onOpenWordProposalModal,
   onLogout,
 }) => {
   const {
@@ -176,6 +178,18 @@ export const Header: React.FC<HeaderProps> = ({
             <HelpCircle className="w-4 h-4 text-teal-700 group-hover:scale-110 transition-transform" />
             <span className="hidden sm:inline">راهنما</span>
           </button>
+
+          {/* Quick Word Proposal Generator Button */}
+          {onOpenWordProposalModal && (
+            <button
+              onClick={onOpenWordProposalModal}
+              className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl transition-all text-xs font-black shadow-md shadow-amber-500/10 cursor-pointer active:scale-95"
+              title="ساخت خودکار فایل Word پیشنهاد مالی و فنی"
+            >
+              <BookOpen className="w-4 h-4 text-slate-950" />
+              <span>ساخت پیشنهاد Word</span>
+            </button>
+          )}
 
           {/* User Profile Dropdown */}
           <div className="relative">

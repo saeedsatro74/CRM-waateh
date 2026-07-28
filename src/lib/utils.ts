@@ -98,3 +98,57 @@ export function handleImageError(e: React.SyntheticEvent<HTMLImageElement, Event
   e.currentTarget.onerror = null;
   e.currentTarget.src = DEFAULT_AVATAR;
 }
+
+/**
+ * Convert numbers to Persian word equivalent
+ * e.g., 93500000000 -> "نود و سه میلیارد و پانصد میلیون ریال"
+ */
+export function numberToPersianWords(num: number | string | undefined | null, unit: string = 'ریال'): string {
+  if (num === undefined || num === null || isNaN(Number(num)) || Number(num) === 0) {
+    return `صفر ${unit}`.trim();
+  }
+
+  let n = Math.abs(Math.floor(Number(num)));
+
+  const yekan = ['', 'یک', 'دو', 'سه', 'چهار', 'پنج', 'شش', 'هفت', 'هشت', 'نه'];
+  const dahgan10 = ['ده', 'یازده', 'دوازده', 'سیزده', 'چهارده', 'پانزده', 'شانزده', 'هفده', 'هجده', 'نوزده'];
+  const dahgan = ['', '', 'بیست', 'سی', 'چهل', 'پنجاه', 'شصت', 'هفتاد', 'هشتاد', 'نود'];
+  const sadgan = ['', 'یکصد', 'دویست', 'سیصد', 'چهارصد', 'پانصد', 'ششصد', 'هفتصد', 'هشتصد', 'نهصد'];
+  const scaleNames = ['', 'هزار', 'میلیون', 'میلیارد', 'تریلیون'];
+
+  function convertThreeDigits(number: number): string {
+    const s = Math.floor(number / 100);
+    const d = Math.floor((number % 100) / 10);
+    const y = number % 10;
+
+    const parts: string[] = [];
+
+    if (s > 0) parts.push(sadgan[s]);
+
+    if (d === 1) {
+      parts.push(dahgan10[y]);
+    } else {
+      if (d > 1) parts.push(dahgan[d]);
+      if (y > 0) parts.push(yekan[y]);
+    }
+
+    return parts.join(' و ');
+  }
+
+  const chunks: string[] = [];
+  let scaleIndex = 0;
+
+  while (n > 0) {
+    const remainder = n % 1000;
+    if (remainder > 0) {
+      const words = convertThreeDigits(remainder);
+      const scaleName = scaleNames[scaleIndex];
+      chunks.unshift(scaleName ? `${words} ${scaleName}` : words);
+    }
+    n = Math.floor(n / 1000);
+    scaleIndex++;
+  }
+
+  const result = chunks.join(' و ');
+  return unit ? `${result} ${unit}`.trim() : result;
+}

@@ -35,6 +35,7 @@ export const OpportunityApprovalModal: React.FC<OpportunityApprovalModalProps> =
   const [deliveryLocationCustom, setDeliveryLocationCustom] = useState<string>(
     existing.deliveryLocationCustom || ''
   );
+  const [shippingCost, setShippingCost] = useState<number>(existing.shippingCost ?? 0);
   const [adminNotes, setAdminNotes] = useState<string>(existing.adminNotes || '');
 
   if (!isOpen) return null;
@@ -49,6 +50,7 @@ export const OpportunityApprovalModal: React.FC<OpportunityApprovalModalProps> =
       warrantyTerms,
       deliveryLocationType,
       deliveryLocationCustom: deliveryLocationType === 'custom' ? deliveryLocationCustom : 'تحویل درب کارخانه',
+      shippingCost: Number(shippingCost) || 0,
       adminNotes,
       approvedByAdminUserId: currentUser?.id,
       approvedByAdminName: currentUser?.name || 'مدیرعامل (مهندس فتح‌پور)',
@@ -226,10 +228,35 @@ export const OpportunityApprovalModal: React.FC<OpportunityApprovalModalProps> =
                 placeholder="آدرس دقیق محل تحویل را وارد کنید..."
                 value={deliveryLocationCustom}
                 onChange={(e) => setDeliveryLocationCustom(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-cyan-500 mb-2"
                 required
               />
             )}
+
+            {/* Shipping / Transport Cost */}
+            <div className="mt-2 bg-slate-950/80 p-3 rounded-xl border border-slate-800 space-y-1.5">
+              <label className="text-xs font-bold text-slate-300 block flex items-center justify-between">
+                <span className="flex items-center gap-1.5 text-cyan-300">
+                  <Truck className="w-4 h-4 text-cyan-400" />
+                  <span>تنظیم هزینه حمل و نقل (تومان):</span>
+                </span>
+                <span className="text-[11px] text-slate-400">محاسبه در پیشنهاد مالی</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="100000"
+                placeholder="0"
+                value={shippingCost || ''}
+                onChange={(e) => setShippingCost(Number(e.target.value))}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm font-extrabold text-cyan-200 focus:outline-none focus:border-cyan-500"
+              />
+              {shippingCost > 0 && (
+                <span className="text-[11px] text-emerald-400 font-bold block pt-0.5">
+                  مبلغ {toPersianDigits(shippingCost.toLocaleString('fa-IR'))} تومان به جمع کل پیشنهاد مالی اضافه می‌شود.
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Admin Notes */}

@@ -38,11 +38,12 @@ export async function generatePreInvoiceWordDoc(
   }
 
   // Calculate totals
+  const shippingCost = opportunity.approvalData?.shippingCost || 0;
   const rawSubtotal = opportunity.items?.reduce((sum, i) => sum + (i.totalPrice || 0), 0) || opportunity.value;
   const discountAmount = Math.round((rawSubtotal * discount) / 100);
   const taxableAmount = rawSubtotal - discountAmount;
   const taxAmount = Math.round(taxableAmount * 0.1); // 10% VAT
-  const grandTotal = taxableAmount + taxAmount;
+  const grandTotal = taxableAmount + taxAmount + shippingCost;
 
   // Build items table rows
   const tableRows: TableRow[] = [
@@ -128,7 +129,7 @@ export async function generatePreInvoiceWordDoc(
       alignment: AlignmentType.CENTER,
     }),
     new Paragraph({
-      text: 'پیش‌فاکتور رسمی فروش تجهیزات و خدمات فنی',
+      text: 'پیشنهاد مالی رسمی فروش تجهیزات و خدمات فنی',
       heading: HeadingLevel.HEADING_2,
       alignment: AlignmentType.CENTER,
     }),
@@ -137,7 +138,7 @@ export async function generatePreInvoiceWordDoc(
     // Invoice Meta
     new Paragraph({
       children: [
-        new TextRun({ text: 'شماره پیش‌فاکتور: ', bold: true }),
+        new TextRun({ text: 'شماره پیشنهاد مالی: ', bold: true }),
         new TextRun({ text: toPersianDigits(opportunity.number || `WQ-${opportunity.id.slice(-6)}`) }),
         new TextRun({ text: '   |   تاریخ صدور: ', bold: true }),
         new TextRun({ text: toPersianDigits(new Date().toLocaleDateString('fa-IR')) }),
@@ -170,6 +171,7 @@ export async function generatePreInvoiceWordDoc(
         new TextRun({ text: `درصد تخفیف مصوب: ${toPersianDigits(discount)}%\n` }),
         new TextRun({ text: `مبلغ تخفیف: ${toPersianDigits(formatTomans(discountAmount))} تومان\n` }),
         new TextRun({ text: `مالیات بر ارزش افزوده (۱۰٪): ${toPersianDigits(formatTomans(taxAmount))} تومان\n` }),
+        ...(shippingCost > 0 ? [new TextRun({ text: `هزینه حمل و نقل: ${toPersianDigits(formatTomans(shippingCost))} تومان\n` })] : []),
         new TextRun({ text: `مبلغ قابل پرداخت نهایی: ${toPersianDigits(formatTomans(grandTotal))} تومان`, bold: true }),
       ],
       alignment: AlignmentType.LEFT,
@@ -224,7 +226,7 @@ export async function generatePreInvoiceWordDoc(
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `PreInvoice_${opportunity.companyName.replace(/\s+/g, '_')}_${opportunity.id.slice(-4)}.docx`);
+  saveAs(blob, `FinancialProposal_${opportunity.companyName.replace(/\s+/g, '_')}_${opportunity.id.slice(-4)}.docx`);
 }
 
 export async function generateTechnicalProposalWordDoc(

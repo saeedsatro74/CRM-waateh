@@ -37,11 +37,12 @@ export const FinalStampedPdfGenerator: React.FC<FinalStampedPdfGeneratorProps> =
   }
 
   // Totals
+  const shippingCost = opportunity.approvalData?.shippingCost || 0;
   const rawSubtotal = opportunity.items?.reduce((sum, i) => sum + (i.totalPrice || 0), 0) || opportunity.value;
   const discountAmount = Math.round((rawSubtotal * discount) / 100);
   const taxableAmount = rawSubtotal - discountAmount;
   const taxAmount = Math.round(taxableAmount * 0.1);
-  const grandTotal = taxableAmount + taxAmount;
+  const grandTotal = taxableAmount + taxAmount + shippingCost;
 
   const handleDownloadPDF = async () => {
     if (!pdfRef.current) return;
@@ -49,32 +50,97 @@ export const FinalStampedPdfGenerator: React.FC<FinalStampedPdfGeneratorProps> =
 
     try {
       const element = pdfRef.current;
+
+      // Wait a tiny bit for render
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(element, {
         scale: 2, // High resolution
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: '#ffffff',
+        windowWidth: 1200,
       });
 
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+        compress: true,
+      });
+
       const imgWidth = 210; // A4 width mm
       const pageHeight = 297; // A4 height mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, imgHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, imgWidth, Math.min(imgHeight, pageHeight));
 
-      const fileName = `Document_Stamped_${opportunity.companyName.replace(/\s+/g, '_')}_${opportunity.id.slice(-4)}.pdf`;
-      pdf.save(fileName);
+      const safeName = (opportunity.companyName || 'WAATEH').replace(/[^\w\u0600-\u06FF]/g, '_');
+      const fileName = `پیشنهاد_مالی_ممهور_${safeName}_${opportunity.id.slice(-4)}.pdf`;
+
+      // Trigger reliable Blob download
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const downloadLink = document.createElement('a');
+      downloadLink.href = blobUrl;
+      downloadLink.download = fileName;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      setTimeout(() => {
+        URL.revokeObjectURL(blobUrl);
+      }, 15000);
 
       if (onPdfGenerated) {
         onPdfGenerated(imgData);
       }
     } catch (err) {
       console.error('PDF generation error:', err);
+      alert('خطا در ساخت فایل PDF. لطفاً از گزینه‌ی «چاپ و ذخیره مستقیم» استفاده نمایید.');
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const handlePrintDocument = () => {
+    if (!pdfRef.current) return;
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('لطفاً اجازه باز شدن پنجره‌های پاپ‌آپ را در مرورگر بدهید.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="fa">
+        <head>
+          <title>پیش فاکتور و پیشنهاد فنی - ${opportunity.companyName || ''}</title>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <style>
+            @media print {
+              body { margin: 0; padding: 0; background: white; }
+              @page { size: A4; margin: 10mm; }
+            }
+            body { font-family: tahoma, sans-serif; background: white; color: #1e293b; padding: 20px; }
+          </style>
+        </head>
+        <body>
+          <div>${pdfRef.current.innerHTML}</div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -98,18 +164,28 @@ export const FinalStampedPdfGenerator: React.FC<FinalStampedPdfGeneratorProps> =
           </div>
         </div>
 
-        <button
-          onClick={handleDownloadPDF}
-          disabled={isGenerating}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center gap-2 shrink-0 active:scale-95 disabled:opacity-50"
-        >
-          {isGenerating ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Download className="w-4 h-4" />
-          )}
-          <span>دانلود فایل PDF نهایی با مهر رسمی</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={handlePrintDocument}
+            className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-all shadow-md flex items-center gap-2 cursor-pointer active:scale-95"
+          >
+            <Printer className="w-4 h-4 text-emerald-400" />
+            <span>چاپ مستقیم / ذخیره PDF مرورگر</span>
+          </button>
+
+          <button
+            onClick={handleDownloadPDF}
+            disabled={isGenerating}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs px-5 py-2.5 rounded-xl transition-all shadow-lg flex items-center gap-2 cursor-pointer active:scale-95 disabled:opacity-50"
+          >
+            {isGenerating ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            <span>دانلود فایل PDF ممهور</span>
+          </button>
+        </div>
       </div>
 
       {/* Printable / Preview PDF Document */}
@@ -147,7 +223,7 @@ export const FinalStampedPdfGenerator: React.FC<FinalStampedPdfGeneratorProps> =
 
             {/* Title */}
             <div className="text-center py-2 bg-slate-100 rounded-lg mb-4 border border-slate-200">
-              <h2 className="font-black text-sm text-slate-900">پیش‌فاکتور و پیشنهاد فنی مصوب فروش</h2>
+              <h2 className="font-black text-sm text-slate-900">پیشنهاد مالی و فنی مصوب فروش</h2>
             </div>
 
             {/* Customer Info Box */}
@@ -227,6 +303,12 @@ export const FinalStampedPdfGenerator: React.FC<FinalStampedPdfGeneratorProps> =
                   <span>مالیات بر ارزش افزوده (۱۰٪):</span>
                   <span>{toPersianDigits(formatTomans(taxAmount))} تومان</span>
                 </div>
+                {shippingCost > 0 && (
+                  <div className="flex justify-between text-cyan-800 font-bold">
+                    <span>هزینه حمل و نقل:</span>
+                    <span>{toPersianDigits(formatTomans(shippingCost))} تومان</span>
+                  </div>
+                )}
                 <div className="flex justify-between pt-1 border-t border-slate-300 text-slate-900 font-black text-xs">
                   <span>مبلغ قابل پرداخت:</span>
                   <span className="text-emerald-800">{toPersianDigits(formatTomans(grandTotal))} تومان</span>

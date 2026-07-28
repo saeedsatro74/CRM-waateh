@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCRMStore } from '../../lib/store';
 import { ProformaInvoice, ProformaItem, ProformaStatus, ProformaType } from '../../types';
+import { WordProposalBuilderModal } from '../opportunities/WordProposalBuilderModal';
 import {
   FileText,
   Plus,
@@ -52,6 +53,7 @@ export const ProformaInvoicesView: React.FC<ProformaInvoicesViewProps> = ({ defa
   const [selectedInvoice, setSelectedInvoice] = useState<ProformaInvoice | null>(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isWordProposalModalOpen, setIsWordProposalModalOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<ProformaInvoice | null>(null);
 
   useEffect(() => {
@@ -377,6 +379,14 @@ export const ProformaInvoicesView: React.FC<ProformaInvoicesViewProps> = ({ defa
             <span className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-full font-normal">
               {proformaInvoices.filter((i) => i.invoiceType === 'purchase').length}
             </span>
+          </button>
+
+          <button
+            onClick={() => setIsWordProposalModalOpen(true)}
+            className="inline-flex items-center justify-center gap-1.5 font-bold text-slate-950 bg-amber-500 hover:bg-amber-400 px-3.5 py-2 rounded-lg shadow-xs transition-all text-xs cursor-pointer mr-1"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span>تولید فایل Word پیشنهاد</span>
           </button>
 
           <button
@@ -1179,6 +1189,12 @@ export const ProformaInvoicesView: React.FC<ProformaInvoicesViewProps> = ({ defa
           </div>
         </div>
       )}
+
+      {/* Word Proposal Builder Modal */}
+      <WordProposalBuilderModal
+        isOpen={isWordProposalModalOpen}
+        onClose={() => setIsWordProposalModalOpen(false)}
+      />
     </div>
   );
 };

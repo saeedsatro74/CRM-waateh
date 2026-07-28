@@ -38,14 +38,14 @@ export interface Customer {
 }
 
 export type OpportunityStage =
-  | 'registration' // ۱. ثبت فرصت
-  | 'pricing' // ۲. قیمت گذاری
-  | 'ceo_review' // ۳. بررسی مدیرعامل
-  | 'internal_marketing' // ۴. بازارگردانی داخلی
-  | 'proforma' // ۵. پیش فاکتور
-  | 'technical_proposal' // ۶. پیشنهاد فنی
-  | 'final_approval' // ۷. تایید نهایی
-  | 'sent'; // ۸. ارسال شد
+  | 'registration' // ۱. ثبت اولیه و اسناد
+  | 'pricing' // ۲. قیمت‌گذاری و شرایط فروش
+  | 'technical_proposal' // ۳. پیشنهاد فنی
+  | 'proforma' // ۴. پیشنهاد مالی
+  | 'final_approval' // ۵. تایید نهایی و صدور رسمی
+  | 'ceo_review' // backward-compatibility
+  | 'internal_marketing' // backward-compatibility
+  | 'sent'; // backward-compatibility
 
 export type DealStage = 'initial_contact' | 'negotiation' | 'proposal' | 'contract' | 'won' | 'lost';
 
@@ -69,6 +69,7 @@ export interface OpportunityApprovalData {
   warrantyTerms?: string; // e.g. "۱۸ ماه پس از تحویل / ۱۲ ماه پس از نصب - هرکدام زودتر فرا برسد"
   deliveryLocationType?: 'factory' | 'custom';
   deliveryLocationCustom?: string;
+  shippingCost?: number; // هزینه حمل و نقل (تومان)
   adminNotes?: string;
   approvedByAdminUserId?: string;
   approvedByAdminName?: string;

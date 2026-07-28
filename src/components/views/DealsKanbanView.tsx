@@ -555,14 +555,14 @@ export const DealsKanbanView: React.FC = () => {
                   فرایند پیشرفته شرکت واته
                 </span>
                 <span className="bg-emerald-500/20 text-emerald-300 font-extrabold text-xs px-3 py-1 rounded-full border border-emerald-500/30">
-                  ۸ مرحله تایید و گردش کار
+                  ۵ مرحله تایید و گردش کار
                 </span>
               </div>
               <h2 className="font-black text-xl sm:text-2xl tracking-tight">
                 چرخه تاییدات و گردش مستندات فرصت‌های فروش
               </h2>
               <p className="text-xs text-purple-200/80 max-w-2xl leading-relaxed">
-                مدیریت کامل فایل‌های پیوست (عکس، ویدیو، PDF، فایل‌های مهندسی)، تعیین تخفیف و شرایط گارانتی توسط مدیرعامل، بازارگردانی و صدور سند نهایی با مهر رسمی.
+                مدیریت کامل اسناد و فایل‌های پیوست، قیمت‌گذاری و شرایط فروش، تنظیم پیشنهاد فنی، صدور پیش‌فاکتور مالی و تایید نهایی ممهور.
               </p>
             </div>
 
