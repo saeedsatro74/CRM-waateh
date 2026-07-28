@@ -3,6 +3,7 @@ import { Opportunity, OpportunityApprovalData, OpportunityFile, OpportunityItem,
 import { OpportunityStageHeader, OPPORTUNITY_STAGES, getStageIndex } from './OpportunityStageHeader';
 import { OpportunityFileUpload } from './OpportunityFileUpload';
 import { OpportunityApprovalModal } from './OpportunityApprovalModal';
+import { OpportunityPricingModal } from './OpportunityPricingModal';
 import { generatePreInvoiceWordDoc, generateTechnicalProposalWordDoc } from './WordDocGenerator';
 import { FinalStampedPdfGenerator } from './FinalStampedPdfGenerator';
 import { formatTomans, toPersianDigits } from '../../lib/utils';
@@ -29,6 +30,7 @@ import {
   Download,
   Share2,
   Edit3,
+  Calculator,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -41,6 +43,7 @@ interface OpportunityDetailModalProps {
   onAddFile: (file: OpportunityFile) => void;
   onDeleteFile: (fileId: string) => void;
   onSaveApproval: (approvalData: OpportunityApprovalData) => void;
+  onSavePricing?: (data: { totalValue: number; items: OpportunityItem[]; discountPercent: number }) => void;
   onAddItem: (item: OpportunityItem) => void;
   onRemoveItem: (itemId: string) => void;
   productsCatalog?: any[];
@@ -56,6 +59,7 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
   onAddFile,
   onDeleteFile,
   onSaveApproval,
+  onSavePricing,
   onAddItem,
   onRemoveItem,
   productsCatalog = [],
@@ -63,6 +67,7 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'pipeline' | 'files' | 'approval' | 'documents' | 'history'>('pipeline');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
   const [stageNotes, setStageNotes] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectStageTarget, setRejectStageTarget] = useState<OpportunityStage>('registration');
@@ -80,13 +85,9 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
   const userRole: UserRole = currentUser?.role || 'sales';
   const currentStageIndex = getStageIndex(opportunity.stage);
 
-  // Permission Checks
+  // Permission Checks: Only Sales Manager and Admin can approve/advance or send back stages
   const canAdvanceStage = () => {
-    if (userRole === 'admin') return true;
-    const stageInfo = OPPORTUNITY_STAGES[currentStageIndex];
-    if (!stageInfo) return false;
-    if (stageInfo.roleRequired === 'all') return true;
-    return userRole === stageInfo.roleRequired;
+    return userRole === 'admin' || userRole === 'sales_manager';
   };
 
   const handleNextStage = () => {
@@ -254,11 +255,29 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                  {/* Pricing Button: Displayed strictly when in pricing stage or for authorized managers */}
+                  {opportunity.stage === 'pricing' && (
+                    <button
+                      onClick={() => setShowPricingModal(true)}
+                      className="bg-blue-600 hover:bg-blue-500 text-white font-black text-xs px-4 py-2 rounded-xl transition-all shadow-lg flex items-center gap-1.5 cursor-pointer ring-2 ring-blue-400/40"
+                    >
+                      <Calculator className="w-4 h-4 text-blue-200" />
+                      <span>قیمت‌گذاری</span>
+                    </button>
+                  )}
+
+                  {!canAdvanceStage() && (
+                    <div className="bg-amber-950/70 border border-amber-600/50 text-amber-300 text-xs px-3 py-2 rounded-xl font-bold flex items-center gap-1.5">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+                      <span>محدودیت دسترسی: تنها مدیر فروش و ادمین اجازه تایید مراحل را دارند.</span>
+                    </div>
+                  )}
+
                   {/* Send Back Button */}
-                  {currentStageIndex > 0 && (userRole === 'admin' || userRole === 'sales_manager') && (
+                  {currentStageIndex > 0 && canAdvanceStage() && (
                     <button
                       onClick={() => setShowRejectModal(true)}
-                      className="px-3.5 py-2 rounded-xl border border-rose-700/60 text-rose-300 hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-xl border border-rose-700/60 text-rose-300 hover:bg-rose-950/40 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <ArrowRight className="w-4 h-4" />
                       <span>بازگرداندن به مرحله قبل</span>
@@ -269,7 +288,7 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                   {(userRole === 'admin' || opportunity.stage === 'ceo_review') && (
                     <button
                       onClick={() => setShowApprovalModal(true)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md"
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition-all flex items-center gap-1.5 shadow-md cursor-pointer"
                     >
                       <ShieldCheck className="w-4 h-4" />
                       <span>ثبت/ویرایش شرایط مدیرعامل</span>
@@ -277,11 +296,10 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
                   )}
 
                   {/* Advance Stage Button */}
-                  {currentStageIndex < OPPORTUNITY_STAGES.length - 1 && (
+                  {currentStageIndex < OPPORTUNITY_STAGES.length - 1 && canAdvanceStage() && (
                     <button
                       onClick={handleNextStage}
-                      disabled={!canAdvanceStage()}
-                      className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 active:scale-95 disabled:opacity-40 cursor-pointer"
+                      className="bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1.5 active:scale-95 cursor-pointer"
                     >
                       <span>ارسال به مرحله بعد ({OPPORTUNITY_STAGES[currentStageIndex + 1]?.label})</span>
                       <ArrowLeft className="w-4 h-4" />
@@ -644,6 +662,18 @@ export const OpportunityDetailModal: React.FC<OpportunityDetailModalProps> = ({
         isOpen={showApprovalModal}
         onClose={() => setShowApprovalModal(false)}
         onSaveApproval={onSaveApproval}
+      />
+
+      {/* Pricing Modal */}
+      <OpportunityPricingModal
+        opportunity={opportunity}
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
+        onSavePricing={(pricingData) => {
+          if (onSavePricing) {
+            onSavePricing(pricingData);
+          }
+        }}
       />
 
       {/* Send Back / Reject Stage Modal */}

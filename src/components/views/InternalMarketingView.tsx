@@ -28,6 +28,7 @@ export const InternalMarketingView: React.FC = () => {
     addOpportunityFile,
     deleteOpportunityFile,
     saveOpportunityApprovalData,
+    updateOpportunityPricing,
     addOpportunityItem,
     removeOpportunityItem,
     currentUser,
@@ -229,6 +230,11 @@ export const InternalMarketingView: React.FC = () => {
           }}
           onSaveApproval={(approvalData) => {
             saveOpportunityApprovalData(selectedOpp.id, approvalData);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
+          onSavePricing={(pricingData) => {
+            updateOpportunityPricing(selectedOpp.id, pricingData);
             const updated = opportunities.find((o) => o.id === selectedOpp.id);
             if (updated) setSelectedOpp(updated);
           }}

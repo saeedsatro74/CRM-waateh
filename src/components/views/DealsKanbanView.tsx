@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useCRMStore } from '../../lib/store';
 import { Deal, DealStage, Opportunity } from '../../types';
 import { OpportunityDetailModal } from '../opportunities/OpportunityDetailModal';
+import { NewOpportunityModal } from '../opportunities/NewOpportunityModal';
 import { OPPORTUNITY_STAGES } from '../opportunities/OpportunityStageHeader';
 import {
   KanbanSquare,
@@ -55,6 +56,7 @@ export const DealsKanbanView: React.FC = () => {
     addOpportunityFile,
     deleteOpportunityFile,
     saveOpportunityApprovalData,
+    updateOpportunityPricing,
     addOpportunityItem,
     removeOpportunityItem,
     deleteOpportunity,
@@ -64,6 +66,7 @@ export const DealsKanbanView: React.FC = () => {
   // View state: workflow (8-stage advanced), kanban, list, or analytics
   const [viewMode, setViewMode] = useState<'workflow' | 'kanban' | 'list' | 'analytics'>('workflow');
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
+  const [showNewOpportunityModal, setShowNewOpportunityModal] = useState(false);
 
   // Filter & Search states
   const [searchTerm, setSearchTerm] = useState('');
@@ -376,7 +379,7 @@ export const DealsKanbanView: React.FC = () => {
 
         <div className="flex items-center gap-3 self-start lg:self-auto">
           <button
-            onClick={handleOpenAdd}
+            onClick={() => setShowNewOpportunityModal(true)}
             className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
@@ -564,19 +567,11 @@ export const DealsKanbanView: React.FC = () => {
             </div>
 
             <button
-              onClick={() => {
-                addOpportunity({
-                  title: 'فرصت فروش چیلر تراکمی و سیستم تهویه',
-                  companyName: 'شرکت صنایع و تجهیزات نوین',
-                  customerName: 'مهندس رضایی',
-                  phone: '09121112233',
-                  value: 2800000000,
-                });
-              }}
+              onClick={() => setShowNewOpportunityModal(true)}
               className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-black text-xs px-4 py-3 rounded-2xl transition-all shadow-lg flex items-center gap-2 shrink-0 active:scale-95 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>ثبت سریع فرصت فروش جدید</span>
+              <span>ثبت فرصت فروش جدید</span>
             </button>
           </div>
 
@@ -585,21 +580,13 @@ export const DealsKanbanView: React.FC = () => {
               <Package className="w-12 h-12 text-slate-400 mx-auto mb-3" />
               <h3 className="font-extrabold text-base text-slate-800">هیچ فرصت فروشی در چرخه ۸ مرحله‌ای ثبت نشده است.</h3>
               <p className="text-xs text-slate-500 mt-1 mb-4">
-                برای شروع، دکمه «ثبت سریع فرصت فروش جدید» را فشار دهید.
+                برای شروع، اطلاعات فرصت فروش جدید را با فرم واقعی ثبت نمایید.
               </p>
               <button
-                onClick={() => {
-                  addOpportunity({
-                    title: 'فرصت جدید چیلر و هواساز',
-                    companyName: 'شرکت داروسازی البرز',
-                    customerName: 'دکتر محمدی',
-                    phone: '09123456789',
-                    value: 3500000000,
-                  });
-                }}
+                onClick={() => setShowNewOpportunityModal(true)}
                 className="bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-md transition-all cursor-pointer"
               >
-                ایجاد نمونه اولیه فرصت فروش
+                افزودن فرم جدید فرصت فروش
               </button>
             </div>
           ) : (
@@ -1319,6 +1306,11 @@ export const DealsKanbanView: React.FC = () => {
             const updated = opportunities.find((o) => o.id === selectedOpp.id);
             if (updated) setSelectedOpp(updated);
           }}
+          onSavePricing={(pricingData) => {
+            updateOpportunityPricing(selectedOpp.id, pricingData);
+            const updated = opportunities.find((o) => o.id === selectedOpp.id);
+            if (updated) setSelectedOpp(updated);
+          }}
           onAddItem={(item) => {
             addOpportunityItem(selectedOpp.id, item);
             const updated = opportunities.find((o) => o.id === selectedOpp.id);
@@ -1333,6 +1325,25 @@ export const DealsKanbanView: React.FC = () => {
           companySettings={settings}
         />
       )}
+
+      {/* New Opportunity Form Modal */}
+      <NewOpportunityModal
+        isOpen={showNewOpportunityModal}
+        onClose={() => setShowNewOpportunityModal(false)}
+        onSubmit={(data) => {
+          addOpportunity({
+            title: data.title,
+            companyName: data.companyName,
+            customerName: data.customerName,
+            phone: data.phone,
+            value: data.value,
+            createdAt: data.jalaliDate,
+            notes: data.notes,
+            files: data.files,
+            items: data.items,
+          });
+        }}
+      />
     </div>
   );
 };

@@ -1149,6 +1149,55 @@ export function useCRMStore() {
     notify();
   };
 
+  const updateOpportunityPricing = (
+    oppId: string,
+    pricingData: { totalValue: number; items: OpportunityItem[]; discountPercent: number }
+  ) => {
+    globalState.opportunities = globalState.opportunities.map((o) => {
+      if (o.id === oppId) {
+        const log: OpportunityWorkflowLog = {
+          id: `log-${Date.now()}`,
+          opportunityId: oppId,
+          fromStage: o.stage,
+          toStage: o.stage,
+          action: 'pricing_updated',
+          performedByUserId: globalState.currentUser?.id || 'user-1',
+          performedByName: globalState.currentUser?.name || 'مدیر فروش',
+          performedByRole: globalState.currentUser?.role || 'sales_manager',
+          timestamp: new Date().toLocaleDateString('fa-IR'),
+          notes: `بروزرسانی قیمت‌گذاری: مبلغ کل ${pricingData.totalValue.toLocaleString('fa-IR')} تومان`,
+        };
+        const updatedApproval = {
+          ...(o.approvalData || {
+            executionTimeDays: 30,
+            priceValidityDays: 7,
+            warrantyTerms: '۱۸ ماه پس از تحویل / ۱۲ ماه پس از نصب',
+            deliveryLocationType: 'factory' as const,
+          }),
+          discountPercent: pricingData.discountPercent,
+        };
+        return {
+          ...o,
+          value: pricingData.totalValue,
+          items: pricingData.items,
+          approvalData: updatedApproval,
+          history: [log, ...(o.history || [])],
+        };
+      }
+      return o;
+    });
+
+    addNotification({
+      title: 'جدول قیمت‌گذاری بروزرسانی شد',
+      message: `اقلام و محاسبه قیمت جدید به ثبت رسید.`,
+      type: 'deal',
+      linkTab: 'deals',
+      opportunityId: oppId,
+    });
+
+    notify();
+  };
+
   const addOpportunityItem = (oppId: string, item: OpportunityItem) => {
     globalState.opportunities = globalState.opportunities.map((o) => {
       if (o.id === oppId) {
@@ -1601,6 +1650,7 @@ export function useCRMStore() {
     addOpportunityFile,
     deleteOpportunityFile,
     saveOpportunityApprovalData,
+    updateOpportunityPricing,
     addOpportunityItem,
     removeOpportunityItem,
     deleteOpportunity,

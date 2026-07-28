@@ -81,7 +81,7 @@ export interface OpportunityWorkflowLog {
   opportunityId: string;
   fromStage: OpportunityStage | string;
   toStage: OpportunityStage | string;
-  action: 'advance' | 'reject' | 'edit' | 'file_added' | 'approval_saved' | 'created';
+  action: 'advance' | 'reject' | 'edit' | 'file_added' | 'approval_saved' | 'created' | 'pricing_updated';
   performedByUserId: string;
   performedByName: string;
   performedByRole: UserRole;
@@ -225,6 +225,7 @@ export interface NotificationItem {
   timestamp: string;
   isRead: boolean;
   linkTab?: string;
+  opportunityId?: string;
 }
 
 export interface CompanySettings {

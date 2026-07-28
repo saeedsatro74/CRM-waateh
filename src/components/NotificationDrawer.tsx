@@ -7,12 +7,14 @@ interface NotificationDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigateTab: (tab: string) => void;
+  onSelectOpportunity?: (oppId: string) => void;
 }
 
 export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
   isOpen,
   onClose,
   onNavigateTab,
+  onSelectOpportunity,
 }) => {
   const { notifications, markNotificationRead, clearAllNotifications } = useCRMStore();
 
@@ -79,7 +81,11 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({
                     key={notif.id}
                     onClick={() => {
                       markNotificationRead(notif.id);
-                      if (notif.linkTab) {
+                      if (notif.opportunityId && onSelectOpportunity) {
+                        onNavigateTab('deals');
+                        onSelectOpportunity(notif.opportunityId);
+                        onClose();
+                      } else if (notif.linkTab) {
                         onNavigateTab(notif.linkTab);
                         onClose();
                       }
